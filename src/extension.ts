@@ -22,5 +22,18 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(disposable);
 }
 
+const isInDiffEditor = () => {
+    var activeEditor = vscode.window.activeTextEditor;
+    if (!activeEditor) {
+        return false;
+    }
+    const uri = activeEditor.document.uri.toString();
+
+    return vscode.window.tabGroups.all.some((tabGroup) =>
+        tabGroup.tabs.some(
+            (tab) => (tab.input as any).modified?.toString() === uri || (tab.input as any).original?.toString() === uri
+        )
+    );
+};
 // This method is called when your extension is deactivated
 export function deactivate() {}
