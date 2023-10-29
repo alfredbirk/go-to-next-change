@@ -44,5 +44,11 @@ const openFirstFile = async () => {
     await vscode.commands.executeCommand("list.focusDown");
     await vscode.commands.executeCommand("list.select");
 };
+const openNextFile = async () => {
+    await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
+    await vscode.commands.executeCommand("workbench.view.scm");
+    await vscode.commands.executeCommand("list.focusDown");
+    await vscode.commands.executeCommand("list.select");
+};
 // This method is called when your extension is deactivated
 export function deactivate() {}
