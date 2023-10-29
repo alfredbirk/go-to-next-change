@@ -50,5 +50,30 @@ const openNextFile = async () => {
     await vscode.commands.executeCommand("list.focusDown");
     await vscode.commands.executeCommand("list.select");
 };
+const goToNextDiff = async () => {
+    const isDiffEditor = isInDiffEditor();
+
+    if (!isDiffEditor) {
+        await openFirstFile();
+        return;
+    }
+
+    var activeEditor = vscode.window.activeTextEditor;
+    if (!activeEditor) {
+        return;
+    }
+
+    const lineBefore = activeEditor.selection.active.line;
+    await vscode.commands.executeCommand("workbench.action.compareEditor.nextChange");
+
+    const lineAfter = activeEditor.selection.active.line;
+
+    if (lineAfter < lineBefore) {
+        await openNextFile();
+    }
+
+    return;
+};
+
 // This method is called when your extension is deactivated
 export function deactivate() {}
