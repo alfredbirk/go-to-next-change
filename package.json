@@ -2,7 +2,7 @@
     "name": "go-to-next-change",
     "displayName": "Go to next change",
     "description": "",
-    "version": "0.0.1",
+    "version": "0.1.0",
     "icon": "src/logo.png",
     "engines": {
         "vscode": "^1.83.0"
