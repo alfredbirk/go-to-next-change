@@ -25,16 +25,16 @@
         ]
     },
     "keybindings": [
-      {
-        "command": "go-to-next-change.go-to-next-scm-change",
-        "key": "ctrl+alt+t",
-        "mac": "alt+e"
-      },
-      {
-        "command": "go-to-next-change.go-to-previous-scm-change",
-        "key": "ctrl+alt+t",
-        "mac": "alt+w"
-      }
+        {
+            "command": "go-to-next-change.go-to-next-scm-change",
+            "key": "alt+l",
+            "mac": "alt+l"
+        },
+        {
+            "command": "go-to-next-change.go-to-previous-scm-change",
+            "key": "alt+k",
+            "mac": "alt+k"
+        }
     ],
     "scripts": {
         "vscode:prepublish": "pnpm run package",
