@@ -7,6 +7,20 @@
     "engines": {
         "vscode": "^1.83.0"
     },
+    "keywords": [
+        "next",
+        "change",
+        "changed",
+        "file",
+        "files",
+        "shortcut",
+        "hotkey",
+        "git",
+        "scm",
+        "source control",
+        "cycle",
+        "previous"
+    ],
     "categories": [
         "Other"
     ],
