@@ -71,7 +71,7 @@ const goToNextDiff = async () => {
 
     const lineAfter = activeEditor.selection.active.line;
 
-    if (lineAfter < lineBefore) {
+    if (lineAfter <= lineBefore) {
         await openNextFile();
     }
 
@@ -96,7 +96,7 @@ const goToPreviousDiff = async () => {
 
     const lineAfter = activeEditor.selection.active.line;
 
-    if (lineAfter > lineBefore) {
+    if (lineAfter >= lineBefore) {
         await openPreviousFile();
     }
 
