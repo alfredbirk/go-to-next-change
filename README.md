@@ -9,7 +9,7 @@
   <br>
 </h1>
 
-<h3 align="center" style="font-size: 14px">Cycle through diffs in changed files. When at the end of a file, it will automatically jump to the next file.</h3>
+<h3 align="center" style="font-size: 14px">Cycle through diffs in changed files with a shortcut. When at the end of a file, it will automatically jump to the next file.</h3>
 
 <p align="center">
   <a href="https://marketplace.visualstudio.com/items?itemName=alfredbirk.go-to-next-change">
