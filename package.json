@@ -1,6 +1,6 @@
 {
     "name": "go-to-next-change",
-    "displayName": "go-to-next-change",
+    "displayName": "Go to next change",
     "description": "",
     "version": "0.0.1",
     "icon": "src/logo.png",
