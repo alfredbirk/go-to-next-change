@@ -17,6 +17,9 @@
 </p>
 <br>
 
+![go-to-next-change-demo](https://github.com/alfredbirk/go-to-next-change/assets/11172530/11718ee0-9031-4790-b78e-098885d9bfdb)
+
+
 ## Features
 
 -   Go to next change
