@@ -4,6 +4,7 @@
     <img src="https://github.com/alfredbirk/go-to-next-change/raw/main/src/logo.png" alt="logo" width="120" />
   </a>
   <br>
+  <br>
   Go to next change
   <br>
 </h1>
