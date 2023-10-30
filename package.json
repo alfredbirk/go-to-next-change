@@ -21,6 +21,11 @@
         "cycle",
         "previous"
     ],
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/alfredbirk/go-to-next-change"
+    },
+    "publisher": "alfredbirk",
     "categories": [
         "Other"
     ],
