@@ -3,6 +3,7 @@
     "displayName": "go-to-next-change",
     "description": "",
     "version": "0.0.1",
+    "icon": "src/logo.png",
     "engines": {
         "vscode": "^1.83.0"
     },
