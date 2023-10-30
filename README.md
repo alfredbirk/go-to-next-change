@@ -12,7 +12,7 @@
 
 <p align="center">
   <a href="https://marketplace.visualstudio.com/items?itemName=alfredbirk.go-to-next-change">
-      <img src="https://img.shields.io/visual-studio-marketplace/v/alfredbirk.instant-docs?color=brightgreen&label=VS%20Marketplace" />
+      <img src="https://img.shields.io/visual-studio-marketplace/v/alfredbirk.go-to-next-change?color=brightgreen&label=VS%20Marketplace" />
   </a>
 </p>
 <br>
