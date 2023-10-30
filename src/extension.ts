@@ -36,8 +36,8 @@ const isInDiffEditor = () => {
 };
 
 const openFirstFile = async () => {
-    await vscode.commands.executeCommand("workbench.view.explorer");
     await vscode.commands.executeCommand("workbench.view.scm");
+    await vscode.commands.executeCommand("workbench.action.focusSideBar");
     await vscode.commands.executeCommand("list.focusFirst");
     await vscode.commands.executeCommand("list.focusDown");
     await vscode.commands.executeCommand("list.focusDown");
