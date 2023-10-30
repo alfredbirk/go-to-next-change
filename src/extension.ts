@@ -5,7 +5,11 @@ export function activate(context: vscode.ExtensionContext) {
         await goToNextDiff();
     });
 
-    context.subscriptions.push(disposable);
+    let disposable2 = vscode.commands.registerCommand("go-to-next-change.go-to-previous-scm-change", async () => {
+        await goToPreviousDiff();
+    });
+
+    context.subscriptions.push(disposable, disposable2);
 }
 
 const isInDiffEditor = () => {
@@ -39,6 +43,16 @@ const openNextFile = async () => {
     await vscode.commands.executeCommand("list.select");
 };
 
+const openPreviousFile = async () => {
+    await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
+    await vscode.commands.executeCommand("workbench.view.scm");
+    await vscode.commands.executeCommand("list.focusUp");
+    await vscode.commands.executeCommand("list.select");
+    setTimeout(() => {
+        vscode.commands.executeCommand("workbench.action.compareEditor.previousChange");
+    }, 50);
+};
+
 const goToNextDiff = async () => {
     const isDiffEditor = isInDiffEditor();
 
@@ -59,6 +73,31 @@ const goToNextDiff = async () => {
 
     if (lineAfter < lineBefore) {
         await openNextFile();
+    }
+
+    return;
+};
+
+const goToPreviousDiff = async () => {
+    const isDiffEditor = isInDiffEditor();
+
+    if (!isDiffEditor) {
+        await openFirstFile();
+        return;
+    }
+
+    var activeEditor = vscode.window.activeTextEditor;
+    if (!activeEditor) {
+        return;
+    }
+
+    const lineBefore = activeEditor.selection.active.line;
+    await vscode.commands.executeCommand("workbench.action.compareEditor.previousChange");
+
+    const lineAfter = activeEditor.selection.active.line;
+
+    if (lineAfter > lineBefore) {
+        await openPreviousFile();
     }
 
     return;
