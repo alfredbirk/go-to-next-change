@@ -16,15 +16,11 @@ const getFileChanges = async () => {
     const gitExtension = vscode.extensions.getExtension<any>("vscode.git")!.exports;
     const git = gitExtension.getAPI(1);
     const repos = git.repositories;
+    const changedFiles = await repos[0].state.workingTreeChanges
+        .map((file: any) => file.uri.toString().substr(7))
+        .sort();
 
-    // Sort changed files in same order as VSCode does
-    const trackedFiles = (await repos[0].diffWithHEAD()).map((file: any) => file.renameUri.path);
-    const trackedAndUntrackedFiles = await repos[0].state.workingTreeChanges.map((file: any) =>
-        file.uri.toString().substr(7)
-    );
-    const changes = [...trackedAndUntrackedFiles.slice(trackedFiles.length), ...trackedFiles];
-
-    return changes;
+    return changedFiles;
 };
 
 const getFirstFilename = async () => {
