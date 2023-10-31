@@ -40,9 +40,12 @@ const isInDiffEditor = () => {
     const uri = activeEditor.document.uri.toString();
 
     return vscode.window.tabGroups.all.some((tabGroup) =>
-        tabGroup.tabs.some(
-            (tab) => (tab.input as any).modified?.toString() === uri || (tab.input as any).original?.toString() === uri
-        )
+        tabGroup.tabs
+            .filter((tab) => tab.input)
+            .some(
+                (tab) =>
+                    (tab.input as any).modified?.toString() === uri || (tab.input as any).original?.toString() === uri
+            )
     );
 };
 
