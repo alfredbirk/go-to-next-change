@@ -56,6 +56,13 @@ const openFirstFile = async () => {
     await vscode.commands.executeCommand("list.select");
 };
 
+const openLastFile = async () => {
+    await vscode.commands.executeCommand("workbench.view.scm");
+    await vscode.commands.executeCommand("workbench.action.focusSideBar");
+    await vscode.commands.executeCommand("list.focusLast");
+    await vscode.commands.executeCommand("list.select");
+};
+
 const openNextFile = async () => {
     await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
     await vscode.commands.executeCommand("workbench.view.scm");
@@ -110,7 +117,11 @@ const goToPreviousDiff = async () => {
     const isDiffEditor = isInDiffEditor();
 
     if (!isDiffEditor) {
-        await openFirstFile();
+        await openLastFile();
+        setTimeout(() => {
+            vscode.commands.executeCommand("workbench.action.compareEditor.previousChange");
+        }, 50);
+
         return;
     }
 
