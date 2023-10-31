@@ -1,9 +1,9 @@
 # Change Log
 
-All notable changes to the "go-to-next-change" extension will be documented in this file.
-
-Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
-
-## [Unreleased]
+## [1.0]
 
 - Initial release
+
+## [1.4.5]
+
+- Close file after last change
