@@ -31,3 +31,6 @@
     -   Windows: `alt + K`
 
 
+## Suggestions & Issues
+
+Suggestions and issues related to the extension can be submitted [on Github](https://github.com/alfredbirk/go-to-next-change/issues)
