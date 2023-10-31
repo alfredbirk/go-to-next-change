@@ -16,20 +16,25 @@ const getFileChanges = async () => {
     const gitExtension = vscode.extensions.getExtension<any>("vscode.git")!.exports;
     const git = gitExtension.getAPI(1);
     const repos = git.repositories;
-    const changes = await repos[0].diffWithHEAD();
+
+    // Sort changed files in same order as VSCode does
+    const trackedFiles = (await repos[0].diffWithHEAD()).map((file: any) => file.renameUri.path);
+    const trackedAndUntrackedFiles = await repos[0].state.workingTreeChanges.map((file: any) =>
+        file.uri.toString().substr(7)
+    );
+    const changes = [...trackedAndUntrackedFiles.slice(trackedFiles.length), ...trackedFiles];
+
     return changes;
 };
 
 const getFirstFilename = async () => {
     const changes = await getFileChanges();
-    const filename = changes[0]?.renameUri.path;
-    return filename;
+    return changes[0];
 };
 
 const getLastFilename = async () => {
     const changes = await getFileChanges();
-    const filename = changes[changes.length - 1]?.renameUri.path;
-    return filename;
+    return changes[changes.length - 1];
 };
 
 const isInDiffEditor = () => {
