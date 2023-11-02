@@ -24,11 +24,11 @@
 ## Features
 
 -   Go to next git change
-    -   Mac: `shift + alt + D`
-    -   Windows: `shift + alt + S`
+    -   Mac: `opt+z`
+    -   Windows: `alt+z`
 -   Go to previous git change
-    -   Mac: `shift + alt + S`
-    -   Windows: `shift + alt + D`
+    -   Mac: `opt+a`
+    -   Windows: `alt+a`
 
 ## Other features
 - `Go to next changed file`

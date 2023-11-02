@@ -54,13 +54,13 @@
     "keybindings": [
         {
             "command": "go-to-next-change.go-to-next-scm-change",
-            "key": "shift+alt+d",
-            "mac": "shift+alt+d"
+            "key": "alt+z",
+            "mac": "alt+z"
         },
         {
             "command": "go-to-next-change.go-to-previous-scm-change",
-            "key": "shift+alt+s",
-            "mac": "shift+alt+s"
+            "key": "alt+a",
+            "mac": "alt+a"
         }
     ],
     "scripts": {
