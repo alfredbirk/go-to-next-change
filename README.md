@@ -30,9 +30,7 @@
     -   Mac: `opt + K`
     -   Windows: `alt + K`
 
-## Commands
-- `Go to next git change`
-- `Go to previous git change`
+## Other features
 - `Go to next changed file`
 - `Go to previous changed file`
 
