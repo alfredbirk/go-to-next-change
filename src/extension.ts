@@ -60,36 +60,67 @@ const isInDiffEditor = () => {
 
 const openFirstFile = async () => {
     await vscode.commands.executeCommand("workbench.view.scm");
-    await vscode.commands.executeCommand("workbench.action.focusSideBar");
-    await vscode.commands.executeCommand("list.focusFirst");
-    await vscode.commands.executeCommand("list.focusDown");
-    await vscode.commands.executeCommand("list.focusDown");
-    await vscode.commands.executeCommand("list.focusDown");
-    await vscode.commands.executeCommand("list.select");
+
+    const fileChanges = await getFileChanges();
+    const firstFile = fileChanges[0];
+
+    const doc = await vscode.workspace.openTextDocument(firstFile);
+    await vscode.window.showTextDocument(doc, { preview: true });
+    await vscode.commands.executeCommand("git.openChange");
 };
 
 const openLastFile = async () => {
     await vscode.commands.executeCommand("workbench.view.scm");
-    await vscode.commands.executeCommand("workbench.action.focusSideBar");
-    await vscode.commands.executeCommand("list.focusLast");
-    await vscode.commands.executeCommand("list.select");
+
+    const fileChanges = await getFileChanges();
+    const lastFile = fileChanges[fileChanges.length - 1];
+
+    const doc = await vscode.workspace.openTextDocument(lastFile);
+    await vscode.window.showTextDocument(doc, { preview: true });
+    await vscode.commands.executeCommand("git.openChange");
 };
 
 const openNextFile = async () => {
+    const fileChanges = await getFileChanges();
+    var activeEditor = vscode.window.activeTextEditor;
+    if (!activeEditor) {
+        return;
+    }
+    const currentFilename = activeEditor.document.fileName;
+    const currentIndex = fileChanges.indexOf(currentFilename);
+    const nextFilename = fileChanges[currentIndex + 1];
+
+    if (currentIndex === fileChanges.length - 1) {
+        await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
+        return;
+    }
+
     await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
-    await vscode.commands.executeCommand("workbench.view.scm");
-    await vscode.commands.executeCommand("list.focusDown");
-    await vscode.commands.executeCommand("list.select");
+    const doc = await vscode.workspace.openTextDocument(nextFilename);
+    await vscode.window.showTextDocument(doc, { preview: true });
+    await vscode.commands.executeCommand("git.openChange");
 };
 
 const openPreviousFile = async () => {
+    const fileChanges = await getFileChanges();
+    var activeEditor = vscode.window.activeTextEditor;
+    if (!activeEditor) {
+        return;
+    }
+    const currentFilename = activeEditor.document.fileName;
+    const currentIndex = fileChanges.indexOf(currentFilename);
+    const previousFilename = fileChanges[currentIndex - 1];
+
+    if (currentIndex === 0) {
+        await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
+        return;
+    }
+
     await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
-    await vscode.commands.executeCommand("workbench.view.scm");
-    await vscode.commands.executeCommand("list.focusUp");
-    await vscode.commands.executeCommand("list.select");
-    setTimeout(() => {
-        vscode.commands.executeCommand("workbench.action.compareEditor.previousChange");
-    }, 50);
+    const doc = await vscode.workspace.openTextDocument(previousFilename);
+    await vscode.window.showTextDocument(doc, { preview: true });
+    await vscode.commands.executeCommand("git.openChange");
+    await vscode.commands.executeCommand("workbench.action.compareEditor.previousChange");
 };
 
 const goToNextDiff = async () => {
@@ -107,22 +138,11 @@ const goToNextDiff = async () => {
 
     const lineBefore = activeEditor.selection.active.line;
     await vscode.commands.executeCommand("workbench.action.compareEditor.nextChange");
-
     const lineAfter = activeEditor.selection.active.line;
 
     if (lineAfter <= lineBefore) {
-        const currentFilename = activeEditor.document.fileName;
-        const lastFilename = await getLastFilename();
-
-        if (currentFilename === lastFilename) {
-            await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
-            return;
-        }
-
         await openNextFile();
     }
-
-    return;
 };
 
 const goToPreviousDiff = async () => {
@@ -130,10 +150,6 @@ const goToPreviousDiff = async () => {
 
     if (!isDiffEditor) {
         await openLastFile();
-        setTimeout(() => {
-            vscode.commands.executeCommand("workbench.action.compareEditor.previousChange");
-        }, 50);
-
         return;
     }
 
@@ -144,21 +160,11 @@ const goToPreviousDiff = async () => {
 
     const lineBefore = activeEditor.selection.active.line;
     await vscode.commands.executeCommand("workbench.action.compareEditor.previousChange");
-
     const lineAfter = activeEditor.selection.active.line;
-    const currentFilename = activeEditor.document.fileName;
-    const firstFilename = await getFirstFilename();
 
     if (lineAfter >= lineBefore) {
-        if (currentFilename === firstFilename) {
-            await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
-            return;
-        }
-
         await openPreviousFile();
     }
-
-    return;
 };
 
 const goToFirstOrNextFile = async () => {
@@ -170,16 +176,7 @@ const goToFirstOrNextFile = async () => {
     }
 
     const activeEditor = vscode.window.activeTextEditor;
-
     if (!activeEditor) {
-        return;
-    }
-
-    const currentFilename = activeEditor.document.fileName;
-    const lastFilename = await getLastFilename();
-
-    if (currentFilename === lastFilename) {
-        await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
         return;
     }
 
@@ -196,14 +193,6 @@ const goToLastOrPreviousFile = async () => {
 
     const activeEditor = vscode.window.activeTextEditor;
     if (!activeEditor) {
-        return;
-    }
-
-    const currentFilename = activeEditor.document.fileName;
-    const firstFilename = await getFirstFilename();
-
-    if (currentFilename === firstFilename) {
-        await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
         return;
     }
 
