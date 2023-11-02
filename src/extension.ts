@@ -9,7 +9,15 @@ export function activate(context: vscode.ExtensionContext) {
         await goToPreviousDiff();
     });
 
-    context.subscriptions.push(disposable, disposable2);
+    let disposable3 = vscode.commands.registerCommand("go-to-next-change.go-to-next-changed-file", async () => {
+        await goToFirstOrNextFile();
+    });
+
+    let disposable4 = vscode.commands.registerCommand("go-to-next-change.go-to-previous-changed-file", async () => {
+        await goToLastOrPreviousFile();
+    });
+
+    context.subscriptions.push(disposable, disposable2, disposable3, disposable4);
 }
 
 const getFileChanges = async () => {
@@ -151,6 +159,55 @@ const goToPreviousDiff = async () => {
     }
 
     return;
+};
+
+const goToFirstOrNextFile = async () => {
+    const isDiffEditor = isInDiffEditor();
+
+    if (!isDiffEditor) {
+        await openFirstFile();
+        return;
+    }
+
+    const activeEditor = vscode.window.activeTextEditor;
+
+    if (!activeEditor) {
+        return;
+    }
+
+    const currentFilename = activeEditor.document.fileName;
+    const lastFilename = await getLastFilename();
+
+    if (currentFilename === lastFilename) {
+        await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
+        return;
+    }
+
+    await openNextFile();
+};
+
+const goToLastOrPreviousFile = async () => {
+    const isDiffEditor = isInDiffEditor();
+
+    if (!isDiffEditor) {
+        await openLastFile();
+        return;
+    }
+
+    const activeEditor = vscode.window.activeTextEditor;
+    if (!activeEditor) {
+        return;
+    }
+
+    const currentFilename = activeEditor.document.fileName;
+    const firstFilename = await getFirstFilename();
+
+    if (currentFilename === firstFilename) {
+        await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
+        return;
+    }
+
+    await openPreviousFile();
 };
 
 export function deactivate() {}
