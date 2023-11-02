@@ -23,10 +23,10 @@
 
 ## Features
 
--   Go to next change
+-   Go to next git change
     -   Mac: `opt + L`
     -   Windows: `alt + L`
--   Go to previous change
+-   Go to previous git change
     -   Mac: `opt + K`
     -   Windows: `alt + K`
 
