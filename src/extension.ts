@@ -95,7 +95,10 @@ const openNextFile = async () => {
         return;
     }
 
-    await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
+    const isPreview = vscode.window.tabGroups.activeTabGroup.activeTab?.isPreview;
+    if (!isPreview) {
+        await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
+    }
     const doc = await vscode.workspace.openTextDocument(nextFilename);
     await vscode.window.showTextDocument(doc, { preview: true });
     await vscode.commands.executeCommand("git.openChange");
@@ -116,7 +119,10 @@ const openPreviousFile = async () => {
         return;
     }
 
-    await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
+    const isPreview = vscode.window.tabGroups.activeTabGroup.activeTab?.isPreview;
+    if (!isPreview) {
+        await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
+    }
     const doc = await vscode.workspace.openTextDocument(previousFilename);
     await vscode.window.showTextDocument(doc, { preview: true });
     await vscode.commands.executeCommand("git.openChange");
