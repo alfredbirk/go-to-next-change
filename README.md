@@ -20,7 +20,6 @@
 
 ![go-to-next-change-demo](https://github.com/alfredbirk/go-to-next-change/assets/11172530/11718ee0-9031-4790-b78e-098885d9bfdb)
 
-
 ## Features
 
 -   Go to next git change
@@ -31,9 +30,13 @@
     -   Windows: `alt+a`
 
 ## Other features
-- `Go to next changed file`
-- `Go to previous changed file`
 
+-   `Go to next changed file`
+-   `Go to previous changed file`
+
+## If you use Tree view
+
+-   If you use "Tree view" in the source control (as opposed to the default List view), go to settings and check off the setting `Go to next change: Tree view`. That will make the changes cycle in correct order.
 
 ## Suggestions & Issues
 
