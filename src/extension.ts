@@ -31,16 +31,6 @@ const getFileChanges = async () => {
     return changedFiles;
 };
 
-const getFirstFilename = async () => {
-    const changes = await getFileChanges();
-    return changes[0];
-};
-
-const getLastFilename = async () => {
-    const changes = await getFileChanges();
-    return changes[changes.length - 1];
-};
-
 const isInDiffEditor = () => {
     var activeEditor = vscode.window.activeTextEditor;
     if (!activeEditor) {
