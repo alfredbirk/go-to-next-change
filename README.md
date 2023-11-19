@@ -22,12 +22,8 @@
 
 ## Features
 
--   Go to next git change
-    -   Mac: `opt+z`
-    -   Windows: `alt+z`
--   Go to previous git change
-    -   Mac: `opt+a`
-    -   Windows: `alt+a`
+-   Go to next git change: `alt+z`
+-   Go to previous git change: `alt+a`
 
 ## Other features
 

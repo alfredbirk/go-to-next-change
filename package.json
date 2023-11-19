@@ -59,20 +59,20 @@
                     "description": "Check this If you use Tree view (as opposed to List view)"
                 }
             }
-        }
-    },
-    "keybindings": [
-        {
-            "command": "go-to-next-change.go-to-next-scm-change",
-            "key": "alt+z",
-            "mac": "alt+z"
         },
-        {
-            "command": "go-to-next-change.go-to-previous-scm-change",
-            "key": "alt+a",
-            "mac": "alt+a"
-        }
-    ],
+        "keybindings": [
+            {
+                "command": "go-to-next-change.go-to-next-scm-change",
+                "key": "alt+z",
+                "mac": "alt+z"
+            },
+            {
+                "command": "go-to-next-change.go-to-previous-scm-change",
+                "key": "alt+a",
+                "mac": "alt+a"
+            }
+        ]
+    },
     "scripts": {
         "vscode:prepublish": "npm run package",
         "compile": "webpack",
