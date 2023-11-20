@@ -18,9 +18,7 @@
 </p>
 <br>
 
-
 ![Final4](https://github.com/alfredbirk/go-to-next-change/assets/11172530/456b380f-e555-404c-9e7d-39b9f3b127ff)
-
 
 ## Features
 
@@ -29,7 +27,7 @@
 
 ## Other features
 
--   Git: Revert selected changes: `alt+q`
+-   Revert selected changes: `alt+q`
 -   Go to next changed file
 -   Go to previous changed file
 
