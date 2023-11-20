@@ -27,8 +27,9 @@
 
 ## Other features
 
--   `Go to next changed file`
--   `Go to previous changed file`
+-   Git: Revert selected changes: `alt+q`
+-   Go to next changed file
+-   Go to previous changed file
 
 ## If you use Tree view
 

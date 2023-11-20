@@ -70,6 +70,11 @@
                 "command": "go-to-next-change.go-to-previous-scm-change",
                 "key": "alt+a",
                 "mac": "alt+a"
+            },
+            {
+                "command": "git.revertSelectedRanges",
+                "key": "alt+q",
+                "mac": "alt+q"
             }
         ]
     },
