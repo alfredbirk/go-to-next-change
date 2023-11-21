@@ -113,7 +113,7 @@ const getFileChanges = async () => {
     const isTreeView = vscode.workspace.getConfiguration("go-to-next-change").get("treeView");
 
     const changedFiles = await repos[0].state.workingTreeChanges
-        .map((file: any) => vscode.Uri.file(file.uri.toString().substr(7)))
+        .map((file: any) => file.uri)
         .sort(isTreeView ? orderFilesForTreeView : orderFilesForListView);
 
     return changedFiles;
