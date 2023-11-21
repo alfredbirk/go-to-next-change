@@ -20,7 +20,7 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(disposable, disposable2, disposable3, disposable4);
 }
 
-const orderFilesForListView = (a: string, b: string) => {
+const orderFilesForListView = (a: any, b: any) => {
     // Order files same way as VSCode does it
     // 1) split by folders and compare pairwise
     // 2) if none have more folders: compare lexiographically
@@ -28,8 +28,8 @@ const orderFilesForListView = (a: string, b: string) => {
     // 4) if only one have any more folders: order that last
     // 5) if both have more folders, and folders are same: compare next folder and go to step 2
 
-    const filenameA = a.toLowerCase().split("/");
-    const filenameB = b.toLowerCase().split("/");
+    const filenameA = a.path.toLowerCase().split("/");
+    const filenameB = b.path.toLowerCase().split("/");
 
     for (let i = 0; i < Math.max(filenameA.length, filenameB.length); i++) {
         const partA = filenameA[i];
@@ -63,7 +63,7 @@ const orderFilesForListView = (a: string, b: string) => {
     }
 };
 
-const orderFilesForTreeView = (a: string, b: string) => {
+const orderFilesForTreeView = (a: any, b: any) => {
     // Order files same way as VSCode does it
     // 1) split by folders and compare pairwise
     // 2) if none have more folders: compare lexiographically
@@ -71,8 +71,8 @@ const orderFilesForTreeView = (a: string, b: string) => {
     // 4) if only one have any more folders: order that first
     // 5) if both have more folders, and folders are same: compare next folder and go to step 2
 
-    const filenameA = a.toLowerCase().split("/");
-    const filenameB = b.toLowerCase().split("/");
+    const filenameA = a.path.toLowerCase().split("/");
+    const filenameB = b.path.toLowerCase().split("/");
 
     for (let i = 0; i < Math.max(filenameA.length, filenameB.length); i++) {
         const partA = filenameA[i];
@@ -113,7 +113,7 @@ const getFileChanges = async () => {
     const isTreeView = vscode.workspace.getConfiguration("go-to-next-change").get("treeView");
 
     const changedFiles = await repos[0].state.workingTreeChanges
-        .map((file: any) => file.uri.toString().substr(7))
+        .map((file: any) => vscode.Uri.file(file.uri.toString().substr(7)))
         .sort(isTreeView ? orderFilesForTreeView : orderFilesForListView);
 
     return changedFiles;
@@ -165,8 +165,8 @@ const openNextFile = async () => {
         return;
     }
     const currentFilename = activeEditor.document.fileName;
-    const currentIndex = fileChanges.indexOf(currentFilename);
-    const nextFilename = fileChanges[currentIndex + 1];
+    const currentIndex = fileChanges.findIndex((file: any) => file.path === currentFilename);
+    const nextFile = fileChanges[currentIndex + 1];
 
     if (currentIndex === fileChanges.length - 1) {
         await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
@@ -177,7 +177,7 @@ const openNextFile = async () => {
     if (!isPreview) {
         await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
     }
-    const doc = await vscode.workspace.openTextDocument(nextFilename);
+    const doc = await vscode.workspace.openTextDocument(nextFile);
     await vscode.window.showTextDocument(doc, { preview: true });
     await vscode.commands.executeCommand("git.openChange");
 };
@@ -189,8 +189,8 @@ const openPreviousFile = async () => {
         return;
     }
     const currentFilename = activeEditor.document.fileName;
-    const currentIndex = fileChanges.indexOf(currentFilename);
-    const previousFilename = fileChanges[currentIndex - 1];
+    const currentIndex = fileChanges.findIndex((file: any) => file.path === currentFilename);
+    const previousFile = fileChanges[currentIndex - 1];
 
     if (currentIndex === 0) {
         await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
@@ -201,7 +201,7 @@ const openPreviousFile = async () => {
     if (!isPreview) {
         await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
     }
-    const doc = await vscode.workspace.openTextDocument(previousFilename);
+    const doc = await vscode.workspace.openTextDocument(previousFile);
     await vscode.window.showTextDocument(doc, { preview: true });
     await vscode.commands.executeCommand("git.openChange");
     await vscode.commands.executeCommand("workbench.action.compareEditor.previousChange");
