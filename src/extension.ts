@@ -164,10 +164,11 @@ const openNextFile = async () => {
     if (!activeEditor) {
         return;
     }
-    const currentFilename = activeEditor.document.fileName;
+    const currentFilename = activeEditor.document.uri.path;
+    console.log("activeEditor.document.uri:", activeEditor.document.uri);
     console.log("currentFilename:", currentFilename);
     console.log("fileChanges:", fileChanges);
-    const currentIndex = fileChanges.findIndex((file: any) => file.path.endsWith(currentFilename));
+    const currentIndex = fileChanges.findIndex((file: any) => file.path === currentFilename);
     const nextFile = fileChanges[currentIndex + 1];
 
     if (currentIndex === fileChanges.length - 1) {
