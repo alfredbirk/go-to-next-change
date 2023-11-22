@@ -22,12 +22,12 @@
 
 ## Features
 
--   Go to next git change: `alt+z`
--   Go to previous git change: `alt+a`
+-   Go to next git change: `alt+z` / `opt+z`
+-   Go to previous git change: `alt+a` / `opt+a`
 
 ## Other features
 
--   Revert selected changes: `alt+q`
+-   Revert selected changes: `alt+q` / `opt+q`
 -   Go to next changed file
 -   Go to previous changed file
 
