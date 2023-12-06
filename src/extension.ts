@@ -119,23 +119,6 @@ const getFileChanges = async () => {
     return changedFiles;
 };
 
-const isInDiffEditor = () => {
-    var activeEditor = vscode.window.activeTextEditor;
-    if (!activeEditor) {
-        return false;
-    }
-    const uri = activeEditor.document.uri.toString();
-
-    return vscode.window.tabGroups.all.some((tabGroup) =>
-        tabGroup.tabs
-            .filter((tab) => tab.input)
-            .some(
-                (tab) =>
-                    (tab.input as any).modified?.toString() === uri || (tab.input as any).original?.toString() === uri
-            )
-    );
-};
-
 const openFirstFile = async () => {
     await vscode.commands.executeCommand("workbench.view.scm");
 
