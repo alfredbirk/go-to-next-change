@@ -142,9 +142,7 @@ const openFirstFile = async () => {
     const fileChanges = await getFileChanges();
     const firstFile = fileChanges[0];
 
-    const doc = await vscode.workspace.openTextDocument(firstFile);
-    await vscode.window.showTextDocument(doc, { preview: true });
-    await vscode.commands.executeCommand("git.openChange");
+    await vscode.commands.executeCommand("git.openChange", firstFile);
 };
 
 const openLastFile = async () => {
@@ -153,9 +151,7 @@ const openLastFile = async () => {
     const fileChanges = await getFileChanges();
     const lastFile = fileChanges[fileChanges.length - 1];
 
-    const doc = await vscode.workspace.openTextDocument(lastFile);
-    await vscode.window.showTextDocument(doc, { preview: true });
-    await vscode.commands.executeCommand("git.openChange");
+    await vscode.commands.executeCommand("git.openChange", lastFile);
 };
 
 const openNextFile = async () => {
@@ -177,9 +173,7 @@ const openNextFile = async () => {
     if (!isPreview) {
         await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
     }
-    const doc = await vscode.workspace.openTextDocument(nextFile);
-    await vscode.window.showTextDocument(doc, { preview: true });
-    await vscode.commands.executeCommand("git.openChange");
+    await vscode.commands.executeCommand("git.openChange", nextFile);
 };
 
 const openPreviousFile = async () => {
@@ -201,22 +195,14 @@ const openPreviousFile = async () => {
     if (!isPreview) {
         await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
     }
-    const doc = await vscode.workspace.openTextDocument(previousFile);
-    await vscode.window.showTextDocument(doc, { preview: true });
-    await vscode.commands.executeCommand("git.openChange");
+    await vscode.commands.executeCommand("git.openChange", previousFile);
     await vscode.commands.executeCommand("workbench.action.compareEditor.previousChange");
 };
 
 const goToNextDiff = async () => {
-    const isDiffEditor = isInDiffEditor();
-
-    if (!isDiffEditor) {
-        await openFirstFile();
-        return;
-    }
-
     var activeEditor = vscode.window.activeTextEditor;
     if (!activeEditor) {
+        await openFirstFile();
         return;
     }
 
@@ -230,15 +216,9 @@ const goToNextDiff = async () => {
 };
 
 const goToPreviousDiff = async () => {
-    const isDiffEditor = isInDiffEditor();
-
-    if (!isDiffEditor) {
-        await openLastFile();
-        return;
-    }
-
     var activeEditor = vscode.window.activeTextEditor;
     if (!activeEditor) {
+        await openLastFile();
         return;
     }
 
@@ -252,15 +232,9 @@ const goToPreviousDiff = async () => {
 };
 
 const goToFirstOrNextFile = async () => {
-    const isDiffEditor = isInDiffEditor();
-
-    if (!isDiffEditor) {
-        await openFirstFile();
-        return;
-    }
-
     const activeEditor = vscode.window.activeTextEditor;
     if (!activeEditor) {
+        await openFirstFile();
         return;
     }
 
@@ -268,15 +242,9 @@ const goToFirstOrNextFile = async () => {
 };
 
 const goToLastOrPreviousFile = async () => {
-    const isDiffEditor = isInDiffEditor();
-
-    if (!isDiffEditor) {
-        await openLastFile();
-        return;
-    }
-
     const activeEditor = vscode.window.activeTextEditor;
     if (!activeEditor) {
+        await openLastFile();
         return;
     }
 
