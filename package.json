@@ -48,6 +48,10 @@
             {
                 "command": "go-to-next-change.go-to-previous-changed-file",
                 "title": "Go to previous changed file"
+            },
+            {
+                "command": "go-to-next-change.revert-and-save",
+                "title": "Revert selected changes and save"
             }
         ],
         "configuration": {
@@ -72,7 +76,7 @@
                 "mac": "alt+a"
             },
             {
-                "command": "git.revertSelectedRanges",
+                "command": "go-to-next-change.revert-and-save",
                 "key": "alt+q",
                 "mac": "alt+q"
             }

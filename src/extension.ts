@@ -17,7 +17,12 @@ export function activate(context: vscode.ExtensionContext) {
         await goToLastOrPreviousFile();
     });
 
-    context.subscriptions.push(disposable, disposable2, disposable3, disposable4);
+    let disposable5 = vscode.commands.registerCommand("go-to-next-change.revert-and-save", async () => {
+        await vscode.commands.executeCommand("git.revertSelectedRanges");
+        await vscode.commands.executeCommand("workbench.action.files.save");
+    });
+
+    context.subscriptions.push(disposable, disposable2, disposable3, disposable4, disposable5);
 }
 
 const orderFilesForListView = (a: any, b: any) => {

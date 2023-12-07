@@ -27,7 +27,7 @@
 
 ## Other features
 
--   Revert selected changes: `alt+q` / `opt+q`
+-   Revert selected changes and save file: `alt+q` / `opt+q`
 -   Go to next changed file
 -   Go to previous changed file
 
