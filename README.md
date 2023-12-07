@@ -28,8 +28,8 @@
 ## Other features
 
 -   Revert selected changes and save file: `alt+q` / `opt+q`
--   Go to next changed file
--   Go to previous changed file
+-   Go to next changed file: `ctrl+alt+z` / `cmd+opt+z`
+-   Go to previous changed file: `ctrl+alt+a` / `cmd+opt+a`
 
 ## If you use Tree view
 

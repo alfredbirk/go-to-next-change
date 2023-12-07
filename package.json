@@ -76,6 +76,16 @@
                 "mac": "alt+a"
             },
             {
+                "command": "go-to-next-change.go-to-next-changed-file",
+                "key": "ctrl+alt+z",
+                "mac": "cmd+alt+z"
+            },
+            {
+                "command": "go-to-next-change.go-to-previous-changed-file",
+                "key": "ctrl+alt+a",
+                "mac": "cmd+alt+a"
+            },
+            {
                 "command": "go-to-next-change.revert-and-save",
                 "key": "alt+q",
                 "mac": "alt+q"
