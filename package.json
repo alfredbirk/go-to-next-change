@@ -2,7 +2,7 @@
     "name": "go-to-next-change",
     "displayName": "Go to next change",
     "description": "Cycle through diffs in changed files. When at the end of a file, it will automatically jump to the next file.",
-    "version": "0.6.10",
+    "version": "0.7.0",
     "icon": "src/logo.png",
     "engines": {
         "vscode": "^1.83.0"
