@@ -198,7 +198,7 @@ const goToNextDiff = async () => {
     await vscode.commands.executeCommand("workbench.action.compareEditor.nextChange");
     const lineAfter = activeEditor.selection.active.line;
 
-    if (lineAfter <= lineBefore) {
+    if (!(lineAfter > lineBefore)) {
         await openNextFile();
     }
 };
@@ -214,7 +214,7 @@ const goToPreviousDiff = async () => {
     await vscode.commands.executeCommand("workbench.action.compareEditor.previousChange");
     const lineAfter = activeEditor.selection.active.line;
 
-    if (lineAfter >= lineBefore) {
+    if (!(lineAfter < lineBefore)) {
         await openPreviousFile();
     }
 };
