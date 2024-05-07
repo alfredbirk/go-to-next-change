@@ -125,7 +125,10 @@ const getFileChanges = async () => {
 };
 
 const openFirstFile = async () => {
-    await vscode.commands.executeCommand("workbench.view.scm");
+    const shouldOpenScmView = vscode.workspace.getConfiguration("go-to-next-change").get("shouldOpenScmView");
+    if (shouldOpenScmView) {
+        await vscode.commands.executeCommand("workbench.view.scm");
+    }
 
     const fileChanges = await getFileChanges();
     const firstFile = fileChanges[0];
@@ -134,7 +137,10 @@ const openFirstFile = async () => {
 };
 
 const openLastFile = async () => {
-    await vscode.commands.executeCommand("workbench.view.scm");
+    const shouldOpenScmView = vscode.workspace.getConfiguration("go-to-next-change").get("shouldOpenScmView");
+    if (shouldOpenScmView) {
+        await vscode.commands.executeCommand("workbench.view.scm");
+    }
 
     const fileChanges = await getFileChanges();
     const lastFile = fileChanges[fileChanges.length - 1];

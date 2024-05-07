@@ -61,6 +61,11 @@
                     "type": "boolean",
                     "default": false,
                     "description": "Check this If you use Tree view (as opposed to List view)"
+                },
+                "go-to-next-change.shouldOpenScmView": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Controls whether the source control side panel should open when going to next/previous change"
                 }
             }
         },
