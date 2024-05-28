@@ -114,10 +114,11 @@ const orderFilesForTreeView = (a: any, b: any) => {
 const getFileChanges = async () => {
     const gitExtension = vscode.extensions.getExtension<any>("vscode.git")!.exports;
     const git = gitExtension.getAPI(1);
-    const repos = git.repositories;
+    const workspaceUri = vscode.workspace.workspaceFolders?.map((ws) => ws.uri)[0];
+    const activeRepo = git.getRepository(workspaceUri?.path) || git.repositories[0];
     const isTreeView = vscode.workspace.getConfiguration("go-to-next-change").get("treeView");
 
-    const changedFiles = await repos[0].state.workingTreeChanges
+    const changedFiles = await activeRepo.state.workingTreeChanges
         .map((file: any) => file.uri)
         .sort(isTreeView ? orderFilesForTreeView : orderFilesForListView);
 
