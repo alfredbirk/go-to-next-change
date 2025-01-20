@@ -155,12 +155,14 @@ const openLastFile = async () => {
 
 const openNextFile = async () => {
     const fileChanges = await getFileChanges();
-    var activeEditor = vscode.window.activeTextEditor;
-    if (!activeEditor) {
+
+    const currentFilename = await getActiveFilePath();
+    if (!currentFilename) {
         return;
     }
-    const currentFilename = activeEditor.document.uri.path;
-    const currentIndex = fileChanges.findIndex((file: any) => file.path === currentFilename);
+
+    const currentFilenameWithoutRoot = currentFilename.slice(1);
+    const currentIndex = fileChanges.findIndex((file: any) => file.path.endsWith(currentFilenameWithoutRoot));
     const nextFile = fileChanges[currentIndex + 1];
 
     if (currentIndex === fileChanges.length - 1) {
@@ -177,12 +179,13 @@ const openNextFile = async () => {
 
 const openPreviousFile = async () => {
     const fileChanges = await getFileChanges();
-    var activeEditor = vscode.window.activeTextEditor;
-    if (!activeEditor) {
+    const currentFilename = await getActiveFilePath();
+    if (!currentFilename) {
         return;
     }
-    const currentFilename = activeEditor.document.uri.path;
-    const currentIndex = fileChanges.findIndex((file: any) => file.path === currentFilename);
+
+    const currentFilenameWithoutRoot = currentFilename.slice(1);
+    const currentIndex = fileChanges.findIndex((file: any) => file.path.endsWith(currentFilenameWithoutRoot));
     const previousFile = fileChanges[currentIndex - 1];
 
     if (currentIndex === 0) {
@@ -200,39 +203,42 @@ const openPreviousFile = async () => {
 
 const goToNextDiff = async () => {
     var activeEditor = vscode.window.activeTextEditor;
-    if (!activeEditor) {
+    const currentFilename = await getActiveFilePath();
+    if (!activeEditor && !currentFilename) {
         await openFirstFile();
         return;
     }
 
-    const lineBefore = activeEditor.selection.active.line;
+    const lineBefore = activeEditor?.selection.active.line;
     await vscode.commands.executeCommand("workbench.action.compareEditor.nextChange");
-    const lineAfter = activeEditor.selection.active.line;
+    const lineAfter = activeEditor?.selection.active.line;
 
-    if (!(lineAfter > lineBefore)) {
+    if (!lineBefore || !lineAfter || !(lineAfter > lineBefore)) {
         await openNextFile();
+        return;
     }
 };
 
 const goToPreviousDiff = async () => {
     var activeEditor = vscode.window.activeTextEditor;
-    if (!activeEditor) {
+    const currentFilename = await getActiveFilePath();
+    if (!activeEditor && !currentFilename) {
         await openLastFile();
         return;
     }
 
-    const lineBefore = activeEditor.selection.active.line;
+    const lineBefore = activeEditor?.selection.active.line;
     await vscode.commands.executeCommand("workbench.action.compareEditor.previousChange");
-    const lineAfter = activeEditor.selection.active.line;
+    const lineAfter = activeEditor?.selection.active.line;
 
-    if (!(lineAfter < lineBefore)) {
+    if (!lineBefore || !lineAfter || !(lineAfter < lineBefore)) {
         await openPreviousFile();
     }
 };
 
 const goToFirstOrNextFile = async () => {
-    const activeEditor = vscode.window.activeTextEditor;
-    if (!activeEditor) {
+    const currentFilename = await getActiveFilePath();
+    if (!currentFilename) {
         await openFirstFile();
         return;
     }
@@ -241,13 +247,42 @@ const goToFirstOrNextFile = async () => {
 };
 
 const goToLastOrPreviousFile = async () => {
-    const activeEditor = vscode.window.activeTextEditor;
-    if (!activeEditor) {
+    const currentFilename = await getActiveFilePath();
+    if (!currentFilename) {
         await openLastFile();
         return;
     }
 
     await openPreviousFile();
+};
+
+const getActiveFilePath = async (): Promise<string> => {
+    var activeEditor = vscode.window.activeTextEditor;
+    const currentFilename = activeEditor?.document.uri.path;
+    if (currentFilename) {
+        return currentFilename;
+    }
+
+    // Since there is no API to get details of non-textual files, the following workaround is performed:
+    // 1. Saving the original clipboard data to a local variable.
+    const originalClipboardData = await vscode.env.clipboard.readText();
+
+    // 2. Populating the clipboard with an empty string
+    await vscode.env.clipboard.writeText("");
+
+    // 3. Calling the copyPathOfActiveFile that populates the clipboard with the source path of the active file.
+    // If there is no active file - the clipboard will not be populated and it will stay with the empty string.
+    await vscode.commands.executeCommand("workbench.action.files.copyPathOfActiveFile");
+
+    // 4. Get the clipboard data after the API call
+    const postAPICallClipboardData = await vscode.env.clipboard.readText();
+
+    // 5. Return the saved original clipboard data to the clipboard so this method
+    // will not interfere with the clipboard's content.
+    await vscode.env.clipboard.writeText(originalClipboardData);
+
+    // 6. Return the clipboard data from the API call (which could be an empty string if it failed).
+    return postAPICallClipboardData;
 };
 
 export function deactivate() {}
