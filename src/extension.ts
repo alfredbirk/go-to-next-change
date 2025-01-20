@@ -118,11 +118,15 @@ const getFileChanges = async () => {
     const activeRepo = git.getRepository(workspaceUri?.path) || git.repositories[0];
     const isTreeView = vscode.workspace.getConfiguration("go-to-next-change").get("treeView");
 
-    const changedFiles = await activeRepo.state.workingTreeChanges
+    const indexChanges = await activeRepo.state.indexChanges
         .map((file: any) => file.uri)
         .sort(isTreeView ? orderFilesForTreeView : orderFilesForListView);
 
-    return changedFiles;
+    const workingTreeChanges = await activeRepo.state.workingTreeChanges
+        .map((file: any) => file.uri)
+        .sort(isTreeView ? orderFilesForTreeView : orderFilesForListView);
+
+    return [...indexChanges, ...workingTreeChanges];
 };
 
 const openFirstFile = async () => {
