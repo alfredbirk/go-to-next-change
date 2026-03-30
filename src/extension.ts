@@ -161,8 +161,8 @@ const openNextFile = async () => {
         return;
     }
 
-    const currentFilenameWithoutRoot = currentFilename.slice(1);
-    const currentIndex = fileChanges.findIndex((file: any) => file.path.endsWith(currentFilenameWithoutRoot));
+    const currentFilenameNormalized = currentFilename.slice(1).replace(/\\/g, "/").toLowerCase();
+    const currentIndex = fileChanges.findIndex((file: any) => file.path.toLowerCase().endsWith(currentFilenameNormalized));
     const nextFile = fileChanges[currentIndex + 1];
 
     if (currentIndex === fileChanges.length - 1) {
@@ -184,8 +184,8 @@ const openPreviousFile = async () => {
         return;
     }
 
-    const currentFilenameWithoutRoot = currentFilename.slice(1);
-    const currentIndex = fileChanges.findIndex((file: any) => file.path.endsWith(currentFilenameWithoutRoot));
+    const currentFilenameNormalized = currentFilename.slice(1).replace(/\\/g, "/").toLowerCase();
+    const currentIndex = fileChanges.findIndex((file: any) => file.path.toLowerCase().endsWith(currentFilenameNormalized));
     const previousFile = fileChanges[currentIndex - 1];
 
     if (currentIndex === 0) {
@@ -213,7 +213,7 @@ const goToNextDiff = async () => {
     await vscode.commands.executeCommand("workbench.action.compareEditor.nextChange");
     const lineAfter = activeEditor?.selection.active.line;
 
-    if (!lineBefore || !lineAfter || !(lineAfter > lineBefore)) {
+    if (lineBefore === undefined || lineAfter === undefined || !(lineAfter > lineBefore)) {
         await openNextFile();
         return;
     }
@@ -231,7 +231,7 @@ const goToPreviousDiff = async () => {
     await vscode.commands.executeCommand("workbench.action.compareEditor.previousChange");
     const lineAfter = activeEditor?.selection.active.line;
 
-    if (!lineBefore || !lineAfter || !(lineAfter < lineBefore)) {
+    if (lineBefore === undefined || lineAfter === undefined || !(lineAfter < lineBefore)) {
         await openPreviousFile();
     }
 };
