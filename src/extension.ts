@@ -1,5 +1,7 @@
 import * as vscode from "vscode";
 
+let isNavigationPromptOpen = false;
+
 export function activate(context: vscode.ExtensionContext) {
     let disposable = vscode.commands.registerCommand("go-to-next-change.go-to-next-scm-change", async () => {
         await goToNextDiff();
@@ -119,10 +121,12 @@ const getFileChanges = async () => {
     const isTreeView = vscode.workspace.getConfiguration("go-to-next-change").get("treeView");
 
     const indexChanges = await activeRepo.state.indexChanges
+        .filter((file: any) => file.status !== 7)
         .map((file: any) => file.uri)
         .sort(isTreeView ? orderFilesForTreeView : orderFilesForListView);
 
     const workingTreeChanges = await activeRepo.state.workingTreeChanges
+        .filter((file: any) => file.status !== 7)
         .map((file: any) => file.uri)
         .sort(isTreeView ? orderFilesForTreeView : orderFilesForListView);
 
@@ -201,6 +205,42 @@ const openPreviousFile = async () => {
     await vscode.commands.executeCommand("workbench.action.compareEditor.previousChange");
 };
 
+const getNextFileName = async (): Promise<string | null> => {
+    const fileChanges = await getFileChanges();
+    const currentFilename = await getActiveFilePath();
+    if (!currentFilename) {
+        return null;
+    }
+
+    const currentFilenameNormalized = currentFilename.slice(1).replace(/\\/g, "/").toLowerCase();
+    const currentIndex = fileChanges.findIndex((file: any) => file.path.toLowerCase().endsWith(currentFilenameNormalized));
+    
+    if (currentIndex === fileChanges.length - 1) {
+        return null;
+    }
+    
+    const nextFile = fileChanges[currentIndex + 1] as any;
+    return nextFile.path || nextFile;
+};
+
+const getPreviousFileName = async (): Promise<string | null> => {
+    const fileChanges = await getFileChanges();
+    const currentFilename = await getActiveFilePath();
+    if (!currentFilename) {
+        return null;
+    }
+
+    const currentFilenameNormalized = currentFilename.slice(1).replace(/\\/g, "/").toLowerCase();
+    const currentIndex = fileChanges.findIndex((file: any) => file.path.toLowerCase().endsWith(currentFilenameNormalized));
+    
+    if (currentIndex === 0) {
+        return null;
+    }
+    
+    const previousFile = fileChanges[currentIndex - 1] as any;
+    return previousFile.path || previousFile;
+};
+
 const goToNextDiff = async () => {
     var activeEditor = vscode.window.activeTextEditor;
     const currentFilename = await getActiveFilePath();
@@ -214,7 +254,40 @@ const goToNextDiff = async () => {
     const lineAfter = activeEditor?.selection.active.line;
 
     if (lineBefore === undefined || lineAfter === undefined || !(lineAfter > lineBefore)) {
-        await openNextFile();
+        // Check if prompt is enabled
+        const promptEnabled = vscode.workspace.getConfiguration("go-to-next-change").get("promptBeforeNextFile");
+        
+        if (promptEnabled) {
+            if (isNavigationPromptOpen) {
+                return;
+            }
+
+            // Ask user for confirmation before jumping to next file
+            const nextFile = await getNextFileName();
+
+            isNavigationPromptOpen = true;
+            try {
+                const promptMessage = nextFile
+                    ? `Jump to next file: ${nextFile}?`
+                    : "No next changed file. Close current editor?";
+
+                const confirmJump = await vscode.window.showWarningMessage(
+                    promptMessage,
+                    { modal: true },
+                    "Yes",
+                    "No"
+                );
+
+                if (confirmJump === "Yes") {
+                    await openNextFile();
+                }
+            } finally {
+                isNavigationPromptOpen = false;
+            }
+        } else {
+            // Jump to next file without prompt
+            await openNextFile();
+        }
         return;
     }
 };
@@ -232,7 +305,40 @@ const goToPreviousDiff = async () => {
     const lineAfter = activeEditor?.selection.active.line;
 
     if (lineBefore === undefined || lineAfter === undefined || !(lineAfter < lineBefore)) {
-        await openPreviousFile();
+        // Check if prompt is enabled
+        const promptEnabled = vscode.workspace.getConfiguration("go-to-next-change").get("promptBeforeNextFile");
+        
+        if (promptEnabled) {
+            if (isNavigationPromptOpen) {
+                return;
+            }
+
+            // Ask user for confirmation before jumping to previous file
+            const previousFile = await getPreviousFileName();
+
+            isNavigationPromptOpen = true;
+            try {
+                const promptMessage = previousFile
+                    ? `Jump to previous file: ${previousFile}?`
+                    : "No previous changed file. Close current editor?";
+
+                const confirmJump = await vscode.window.showWarningMessage(
+                    promptMessage,
+                    { modal: true },
+                    "Yes",
+                    "No"
+                );
+
+                if (confirmJump === "Yes") {
+                    await openPreviousFile();
+                }
+            } finally {
+                isNavigationPromptOpen = false;
+            }
+        } else {
+            // Jump to previous file without prompt
+            await openPreviousFile();
+        }
     }
 };
 
