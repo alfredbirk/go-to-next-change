@@ -66,6 +66,11 @@
                     "type": "boolean",
                     "default": true,
                     "description": "Controls whether the source control side panel should open when going to next/previous change"
+                },
+                "go-to-next-change.promptBeforeNextFile": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Show a confirmation prompt before jumping to the next/previous file when reaching the end of the current file"
                 }
             }
         },
