@@ -117,42 +117,111 @@ const orderFilesForTreeView = (a: any, b: any) => {
     }
 };
 
-const getFileChanges = async () => {
+// One navigable entry in the changes list. `staged` distinguishes the index (Staged Changes) copy from
+// the working-tree (Changes) copy of the same file. They are SEPARATE diffs, and a partially-staged file
+// legitimately appears as BOTH — exactly like the Source Control view shows it.
+interface FileChange {
+    uri: vscode.Uri;
+    staged: boolean;
+}
+
+const getFileChanges = async (): Promise<FileChange[]> => {
     const gitExtension = vscode.extensions.getExtension<any>("vscode.git")!.exports;
     const git = gitExtension.getAPI(1);
     const workspaceUri = vscode.workspace.workspaceFolders?.map((ws) => ws.uri)[0];
     const activeRepo = git.getRepository(workspaceUri?.path) || git.repositories[0];
     const isTreeView = vscode.workspace.getConfiguration("go-to-next-change").get("treeView");
 
-    const indexChanges = await activeRepo.state.indexChanges
+    const indexChanges: FileChange[] = activeRepo.state.indexChanges
         .filter((file: any) => file.status !== 7)
         .map((file: any) => file.uri)
-        .sort(isTreeView ? orderFilesForTreeView : orderFilesForListView);
+        .sort(isTreeView ? orderFilesForTreeView : orderFilesForListView)
+        .map((uri: vscode.Uri) => ({ uri, staged: true }));
 
-    const workingTreeChanges = await activeRepo.state.workingTreeChanges
+    const workingTreeChanges: FileChange[] = activeRepo.state.workingTreeChanges
         .filter((file: any) => file.status !== 7)
         .map((file: any) => file.uri)
-        .sort(isTreeView ? orderFilesForTreeView : orderFilesForListView);
+        .sort(isTreeView ? orderFilesForTreeView : orderFilesForListView)
+        .map((uri: vscode.Uri) => ({ uri, staged: false }));
 
     // BUG FIX: a file that is partially staged (or staged and then edited again) appears in BOTH
-    // indexChanges and workingTreeChanges with the SAME on-disk path, so it used to land in this list
-    // twice. Navigation finds "where you are" with findIndex(path), which always returns the FIRST
-    // (staged) occurrence — and VSCode's git.openChange always opens the working-tree diff for such a
-    // file (its getSCMResource prefers the working tree group), so the staged duplicate is actually
-    // unreachable. That mismatch made "go to next change" jump to the wrong file or get stuck looping
-    // on the same one. Repro before fix: stage file A, edit A again, then from a staged file listed
-    // above A press the next-change shortcut past A's last diff — it jumped to A's unstaged copy
-    // instead of advancing down the list. Collapse to one entry per path; keeping the first occurrence
-    // preserves the Source Control view's top-to-bottom reading order.
-    const seenPaths = new Set<string>();
-    return [...indexChanges, ...workingTreeChanges].filter((uri: any) => {
-        const pathKey = uri.path.toLowerCase();
-        if (seenPaths.has(pathKey)) {
-            return false;
+    // indexChanges and workingTreeChanges with the SAME on-disk path — so it shows twice here, just as it
+    // does in the Source Control view (once under Staged Changes, once under Changes). The previous code
+    // matched the current position by PATH ONLY, which always resolved to the FIRST (staged) copy, while
+    // VSCode's git.openChange always opens the WORKING-TREE diff for such a file (getSCMResource prefers
+    // the working tree group). That mismatch made "go to next change" jump to the wrong file or loop.
+    // The fix is NOT to de-duplicate (that reorders the list vs what the user sees); instead we TAG each
+    // entry with its side here, then disambiguate by {path, staged} in findCurrentIndex and open the
+    // matching side in openChangeEntry. Order mirrors the SCM view exactly: Staged group, then Changes
+    // group. Repro before fix: stage file A, edit A again, then from a staged file above A press the
+    // next-change shortcut past A's last diff — it jumped to A's unstaged copy instead of advancing.
+    return [...indexChanges, ...workingTreeChanges];
+};
+
+// Describes which diff is currently focused: the file path, and whether it is the staged (index) side.
+// `staged` is null when we can't tell (a plain file editor, or a non-textual file), in which case callers
+// fall back to a path-only match (legacy behavior).
+interface ActiveChange {
+    path: string;
+    staged: boolean | null;
+}
+
+const getActiveChange = async (): Promise<ActiveChange | null> => {
+    // Prefer the active tab's diff input: it exposes the modified (right) side regardless of which pane
+    // has keyboard focus. VSCode's git extension builds the modified side as a `git`-scheme uri for the
+    // index/staged diff and the plain `file` uri for the working-tree diff (see getRightResource in
+    // vscode/extensions/git/src/repository.ts), so the scheme tells us the side unambiguously.
+    const input = vscode.window.tabGroups.activeTabGroup.activeTab?.input;
+    if (input instanceof vscode.TabInputTextDiff) {
+        return { path: input.modified.path, staged: input.modified.scheme === "git" };
+    }
+
+    // Fallback for plain editors / non-textual files: path only, side unknown.
+    const path = await getActiveFilePath();
+    return path ? { path, staged: null } : null;
+};
+
+// Index of the active change within the list. Matches by normalized path AND staged side when the side is
+// known, so the staged and unstaged copies of a partially-staged file are told apart (the core bug fix).
+const findCurrentIndex = (fileChanges: FileChange[], active: ActiveChange): number => {
+    const normalized = active.path.slice(1).replace(/\\/g, "/").toLowerCase();
+    const pathMatches = (entry: FileChange) => entry.uri.path.toLowerCase().endsWith(normalized);
+
+    if (active.staged !== null) {
+        const exact = fileChanges.findIndex((entry) => entry.staged === active.staged && pathMatches(entry));
+        if (exact !== -1) {
+            return exact;
         }
-        seenPaths.add(pathKey);
-        return true;
-    });
+    }
+    // Side unknown, or no exact match — fall back to the first path match (legacy behavior).
+    return fileChanges.findIndex(pathMatches);
+};
+
+// Replicates vscode/extensions/git/src/uri.ts toGitUri: a `git`-scheme uri whose JSON query carries the
+// real fs path + a git ref. Needed to open the STAGED (index) diff of a file directly, because
+// git.openChange(fileUri) resolves a plain file uri to the WORKING-TREE resource whenever one exists
+// (getSCMResource prefers workingTreeGroup) — so it can't reach the staged side of a partially-staged file.
+const toGitUri = (uri: vscode.Uri, ref: string): vscode.Uri => {
+    return uri.with({ scheme: "git", path: uri.path, query: JSON.stringify({ path: uri.fsPath, ref }) });
+};
+
+// Opens the diff for a single list entry on the correct (staged vs unstaged) side.
+const openChangeEntry = async (entry: FileChange): Promise<void> => {
+    if (!entry.staged) {
+        // Working-tree (unstaged) diff: git.openChange opens this side correctly.
+        await vscode.commands.executeCommand("git.openChange", entry.uri);
+        return;
+    }
+    // Staged (index) diff: open HEAD-vs-index explicitly so it works even for a partially-staged file
+    // (where git.openChange would otherwise show the working-tree diff). preview:true mirrors single-click
+    // SCM behavior so the existing preview-tab handling keeps working. A newly-added file has no HEAD blob;
+    // the git content provider returns empty for that side, so the diff shows it as fully added — same as
+    // the Source Control view. The git-scheme modified side also makes getActiveChange detect this as
+    // staged, so subsequent next/previous navigation stays anchored to the correct list entry.
+    const left = toGitUri(entry.uri, "HEAD");
+    const right = toGitUri(entry.uri, "");
+    const title = `${entry.uri.path.split("/").pop()} (Index)`;
+    await vscode.commands.executeCommand("vscode.diff", left, right, title, { preview: true });
 };
 
 const openFirstFile = async () => {
@@ -162,9 +231,11 @@ const openFirstFile = async () => {
     }
 
     const fileChanges = await getFileChanges();
-    const firstFile = fileChanges[0];
+    if (fileChanges.length === 0) {
+        return;
+    }
 
-    await vscode.commands.executeCommand("git.openChange", firstFile);
+    await openChangeEntry(fileChanges[0]);
 };
 
 const openLastFile = async () => {
@@ -174,23 +245,26 @@ const openLastFile = async () => {
     }
 
     const fileChanges = await getFileChanges();
-    const lastFile = fileChanges[fileChanges.length - 1];
+    if (fileChanges.length === 0) {
+        return;
+    }
 
-    await vscode.commands.executeCommand("git.openChange", lastFile);
+    await openChangeEntry(fileChanges[fileChanges.length - 1]);
 };
 
 const openNextFile = async () => {
     const fileChanges = await getFileChanges();
 
-    const currentFilename = await getActiveFilePath();
-    if (!currentFilename) {
+    const active = await getActiveChange();
+    if (!active) {
         return;
     }
 
-    const currentFilenameNormalized = currentFilename.slice(1).replace(/\\/g, "/").toLowerCase();
-    const currentIndex = fileChanges.findIndex((file: any) => file.path.toLowerCase().endsWith(currentFilenameNormalized));
-    const nextFile = fileChanges[currentIndex + 1];
+    const currentIndex = findCurrentIndex(fileChanges, active);
 
+    // At the end of the list (or list empty) -> nothing more to show, close the diff editor.
+    // (currentIndex === -1, i.e. active file not in the list, falls through and opens the first entry,
+    // matching the original behavior.)
     if (currentIndex === fileChanges.length - 1) {
         await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
         return;
@@ -200,21 +274,20 @@ const openNextFile = async () => {
     if (!isPreview) {
         await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
     }
-    await vscode.commands.executeCommand("git.openChange", nextFile);
+    await openChangeEntry(fileChanges[currentIndex + 1]);
 };
 
 const openPreviousFile = async () => {
     const fileChanges = await getFileChanges();
-    const currentFilename = await getActiveFilePath();
-    if (!currentFilename) {
+    const active = await getActiveChange();
+    if (!active) {
         return;
     }
 
-    const currentFilenameNormalized = currentFilename.slice(1).replace(/\\/g, "/").toLowerCase();
-    const currentIndex = fileChanges.findIndex((file: any) => file.path.toLowerCase().endsWith(currentFilenameNormalized));
-    const previousFile = fileChanges[currentIndex - 1];
+    const currentIndex = findCurrentIndex(fileChanges, active);
 
-    if (currentIndex === 0) {
+    // At the start of the list (currentIndex === 0) or active file not found (-1) -> close the editor.
+    if (currentIndex <= 0) {
         await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
         return;
     }
@@ -223,44 +296,42 @@ const openPreviousFile = async () => {
     if (!isPreview) {
         await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
     }
-    await vscode.commands.executeCommand("git.openChange", previousFile);
+    await openChangeEntry(fileChanges[currentIndex - 1]);
     await vscode.commands.executeCommand("workbench.action.compareEditor.previousChange");
 };
 
 const getNextFileName = async (): Promise<string | null> => {
     const fileChanges = await getFileChanges();
-    const currentFilename = await getActiveFilePath();
-    if (!currentFilename) {
+    const active = await getActiveChange();
+    if (!active) {
         return null;
     }
 
-    const currentFilenameNormalized = currentFilename.slice(1).replace(/\\/g, "/").toLowerCase();
-    const currentIndex = fileChanges.findIndex((file: any) => file.path.toLowerCase().endsWith(currentFilenameNormalized));
-    
+    const currentIndex = findCurrentIndex(fileChanges, active);
+
     if (currentIndex === fileChanges.length - 1) {
         return null;
     }
-    
-    const nextFile = fileChanges[currentIndex + 1] as any;
-    return nextFile.path || nextFile;
+
+    const nextFile = fileChanges[currentIndex + 1]; // currentIndex === -1 -> previews the first entry
+    return nextFile ? nextFile.uri.path : null;
 };
 
 const getPreviousFileName = async (): Promise<string | null> => {
     const fileChanges = await getFileChanges();
-    const currentFilename = await getActiveFilePath();
-    if (!currentFilename) {
+    const active = await getActiveChange();
+    if (!active) {
         return null;
     }
 
-    const currentFilenameNormalized = currentFilename.slice(1).replace(/\\/g, "/").toLowerCase();
-    const currentIndex = fileChanges.findIndex((file: any) => file.path.toLowerCase().endsWith(currentFilenameNormalized));
-    
-    if (currentIndex === 0) {
+    const currentIndex = findCurrentIndex(fileChanges, active);
+
+    if (currentIndex <= 0) {
         return null;
     }
-    
-    const previousFile = fileChanges[currentIndex - 1] as any;
-    return previousFile.path || previousFile;
+
+    const previousFile = fileChanges[currentIndex - 1];
+    return previousFile ? previousFile.uri.path : null;
 };
 
 const goToNextDiff = async () => {
@@ -389,26 +460,49 @@ const goToLastOrPreviousFile = async () => {
 const stageCurrentFileAndGoToNextUnstaged = async () => {
     const gitExtension = vscode.extensions.getExtension<any>("vscode.git")!.exports;
     const git = gitExtension.getAPI(1);
-    const workspaceUri = vscode.workspace.workspaceFolders?.map((ws) => ws.uri)[0];
-    const activeRepo = git.getRepository(workspaceUri?.path) || git.repositories[0];
 
     const currentUri = await getActiveFileUri();
     if (!currentUri) {
         return;
     }
 
+    // Resolve the repository from the CURRENT file (not just the first workspace folder) so a multi-root
+    // workspace stages against the right repo and computes the next file from the right state.
+    const activeRepo = git.getRepository(currentUri) || git.repositories[0];
+    if (!activeRepo) {
+        return;
+    }
+
+    const currentNormalized = currentUri.path.slice(1).replace(/\\/g, "/").toLowerCase();
+    const pathMatches = (uri: vscode.Uri) => uri.path.toLowerCase().endsWith(currentNormalized);
+
+    // SAFETY GUARD: only act if the active file is actually a change (staged, unstaged, or untracked).
+    // Without this, an accidental shift+alt+z while editing a clean/unrelated file would run git add as a
+    // no-op and then close that editor — a nasty surprise. Untracked is included so staging a brand-new
+    // file still works; navigation below stays within tracked unstaged files (see note).
+    const untrackedChanges = activeRepo.state.untrackedChanges ?? [];
+    const isChangedFile =
+        activeRepo.state.indexChanges.some((file: any) => pathMatches(file.uri)) ||
+        activeRepo.state.workingTreeChanges.some((file: any) => pathMatches(file.uri)) ||
+        untrackedChanges.some((file: any) => pathMatches(file.uri));
+    if (!isChangedFile) {
+        return;
+    }
+
     // Work out the next unstaged file BEFORE staging. activeRepo.state updates asynchronously after a
     // stage, so reading the list afterwards would see a stale snapshot (current file still present) or
     // shifted indices. Capturing the target up-front makes where-we-land deterministic. We only look at
-    // workingTreeChanges (the unstaged group) because the goal is to advance to the next unstaged file.
+    // workingTreeChanges (the tracked unstaged group). NOTE: untracked/new files (status === 7) are
+    // excluded from the "next" target on purpose — git.openChange can't open a diff for them, so they
+    // aren't part of this extension's navigation model (consistent with alt+z). Staging the CURRENT file
+    // still works even when it's untracked.
     const isTreeView = vscode.workspace.getConfiguration("go-to-next-change").get("treeView");
     const workingTreeChanges = activeRepo.state.workingTreeChanges
         .filter((file: any) => file.status !== 7)
         .map((file: any) => file.uri)
         .sort(isTreeView ? orderFilesForTreeView : orderFilesForListView);
 
-    const currentNormalized = currentUri.path.slice(1).replace(/\\/g, "/").toLowerCase();
-    const currentIndex = workingTreeChanges.findIndex((uri: any) => uri.path.toLowerCase().endsWith(currentNormalized));
+    const currentIndex = workingTreeChanges.findIndex(pathMatches);
     // Current file is in the unstaged list -> land on the one after it. Not in it (e.g. we were viewing
     // an already-staged file) -> fall back to the first unstaged file.
     const nextUnstagedFile = currentIndex === -1 ? workingTreeChanges[0] : workingTreeChanges[currentIndex + 1];

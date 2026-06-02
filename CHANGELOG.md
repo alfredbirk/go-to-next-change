@@ -10,5 +10,5 @@
 
 ## [0.8.0] (ethansk fork)
 
-- Fix: "go to next change" jumping to the wrong file (or getting stuck) when a file was partially staged / staged-then-edited — such a file appeared twice in the navigation list (staged + unstaged) and the lookup locked onto the unreachable staged copy. The list is now de-duplicated to one entry per file.
+- Fix: "go to next change" jumping to the wrong file (or getting stuck) when a file was partially staged / staged-then-edited — such a file appears twice (staged + unstaged) and the position lookup matched by path only, locking onto the wrong copy. Navigation entries are now tagged with their staged/unstaged side, the current side is detected from the active diff, and the matching side is opened.
 - New: `shift+alt+z` stages the current file and jumps to the next unstaged file, so you can review-and-stage without clicking the + manually.
