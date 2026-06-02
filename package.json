@@ -23,9 +23,9 @@
     ],
     "repository": {
         "type": "git",
-        "url": "https://github.com/alfredbirk/go-to-next-change"
+        "url": "https://github.com/EthanSK/go-to-next-change"
     },
-    "publisher": "alfredbirk",
+    "publisher": "ethansk",
     "categories": [
         "Other"
     ],
