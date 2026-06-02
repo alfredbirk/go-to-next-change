@@ -2,7 +2,7 @@
     "name": "go-to-next-change",
     "displayName": "Go to next change",
     "description": "Cycle through diffs in changed files. When at the end of a file, it will automatically jump to the next file.",
-    "version": "0.7.9",
+    "version": "0.8.0",
     "icon": "src/logo.png",
     "engines": {
         "vscode": "^1.83.0"
@@ -52,6 +52,10 @@
             {
                 "command": "go-to-next-change.revert-and-save",
                 "title": "Revert selected changes and save"
+            },
+            {
+                "command": "go-to-next-change.stage-and-go-to-next-changed-file",
+                "title": "Stage current file and go to next unstaged change"
             }
         ],
         "configuration": {
@@ -99,6 +103,11 @@
                 "command": "go-to-next-change.revert-and-save",
                 "key": "alt+q",
                 "mac": "alt+q"
+            },
+            {
+                "command": "go-to-next-change.stage-and-go-to-next-changed-file",
+                "key": "shift+alt+z",
+                "mac": "shift+alt+z"
             }
         ]
     },

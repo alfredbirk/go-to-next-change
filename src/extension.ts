@@ -24,7 +24,11 @@ export function activate(context: vscode.ExtensionContext) {
         await vscode.commands.executeCommand("workbench.action.files.save");
     });
 
-    context.subscriptions.push(disposable, disposable2, disposable3, disposable4, disposable5);
+    let disposable6 = vscode.commands.registerCommand("go-to-next-change.stage-and-go-to-next-changed-file", async () => {
+        await stageCurrentFileAndGoToNextUnstaged();
+    });
+
+    context.subscriptions.push(disposable, disposable2, disposable3, disposable4, disposable5, disposable6);
 }
 
 const orderFilesForListView = (a: any, b: any) => {
@@ -130,7 +134,25 @@ const getFileChanges = async () => {
         .map((file: any) => file.uri)
         .sort(isTreeView ? orderFilesForTreeView : orderFilesForListView);
 
-    return [...indexChanges, ...workingTreeChanges];
+    // BUG FIX: a file that is partially staged (or staged and then edited again) appears in BOTH
+    // indexChanges and workingTreeChanges with the SAME on-disk path, so it used to land in this list
+    // twice. Navigation finds "where you are" with findIndex(path), which always returns the FIRST
+    // (staged) occurrence — and VSCode's git.openChange always opens the working-tree diff for such a
+    // file (its getSCMResource prefers the working tree group), so the staged duplicate is actually
+    // unreachable. That mismatch made "go to next change" jump to the wrong file or get stuck looping
+    // on the same one. Repro before fix: stage file A, edit A again, then from a staged file listed
+    // above A press the next-change shortcut past A's last diff — it jumped to A's unstaged copy
+    // instead of advancing down the list. Collapse to one entry per path; keeping the first occurrence
+    // preserves the Source Control view's top-to-bottom reading order.
+    const seenPaths = new Set<string>();
+    return [...indexChanges, ...workingTreeChanges].filter((uri: any) => {
+        const pathKey = uri.path.toLowerCase();
+        if (seenPaths.has(pathKey)) {
+            return false;
+        }
+        seenPaths.add(pathKey);
+        return true;
+    });
 };
 
 const openFirstFile = async () => {
@@ -362,6 +384,52 @@ const goToLastOrPreviousFile = async () => {
     await openPreviousFile();
 };
 
+// FEATURE (shift+alt+z): stage the whole current file, then jump straight to the next UNSTAGED file so
+// you can review-and-stage without reaching for the mouse to click the + each time.
+const stageCurrentFileAndGoToNextUnstaged = async () => {
+    const gitExtension = vscode.extensions.getExtension<any>("vscode.git")!.exports;
+    const git = gitExtension.getAPI(1);
+    const workspaceUri = vscode.workspace.workspaceFolders?.map((ws) => ws.uri)[0];
+    const activeRepo = git.getRepository(workspaceUri?.path) || git.repositories[0];
+
+    const currentUri = await getActiveFileUri();
+    if (!currentUri) {
+        return;
+    }
+
+    // Work out the next unstaged file BEFORE staging. activeRepo.state updates asynchronously after a
+    // stage, so reading the list afterwards would see a stale snapshot (current file still present) or
+    // shifted indices. Capturing the target up-front makes where-we-land deterministic. We only look at
+    // workingTreeChanges (the unstaged group) because the goal is to advance to the next unstaged file.
+    const isTreeView = vscode.workspace.getConfiguration("go-to-next-change").get("treeView");
+    const workingTreeChanges = activeRepo.state.workingTreeChanges
+        .filter((file: any) => file.status !== 7)
+        .map((file: any) => file.uri)
+        .sort(isTreeView ? orderFilesForTreeView : orderFilesForListView);
+
+    const currentNormalized = currentUri.path.slice(1).replace(/\\/g, "/").toLowerCase();
+    const currentIndex = workingTreeChanges.findIndex((uri: any) => uri.path.toLowerCase().endsWith(currentNormalized));
+    // Current file is in the unstaged list -> land on the one after it. Not in it (e.g. we were viewing
+    // an already-staged file) -> fall back to the first unstaged file.
+    const nextUnstagedFile = currentIndex === -1 ? workingTreeChanges[0] : workingTreeChanges[currentIndex + 1];
+
+    // Stage the whole current file — equivalent to clicking the + next to it in the Source Control view.
+    await activeRepo.add([currentUri.fsPath]);
+
+    if (!nextUnstagedFile) {
+        // Current was the last (or only) unstaged file — nothing left to review, so close the diff editor.
+        await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
+        return;
+    }
+
+    // Mirror openNextFile's editor handling: replace a pinned (non-preview) editor, keep a preview tab.
+    const isPreview = vscode.window.tabGroups.activeTabGroup.activeTab?.isPreview;
+    if (!isPreview) {
+        await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
+    }
+    await vscode.commands.executeCommand("git.openChange", nextUnstagedFile);
+};
+
 const getActiveFilePath = async (): Promise<string> => {
     var activeEditor = vscode.window.activeTextEditor;
     const currentFilename = activeEditor?.document.uri.path;
@@ -389,6 +457,31 @@ const getActiveFilePath = async (): Promise<string> => {
 
     // 6. Return the clipboard data from the API call (which could be an empty string if it failed).
     return postAPICallClipboardData;
+};
+
+// Returns the on-disk file:// Uri of the active editor. A staged diff's modified side uses the `git`
+// scheme and encodes the real path in its JSON query (e.g. {"path":"/abs/path","ref":""}), so we
+// normalize that back to a plain file Uri. Needed by the stage-and-advance command, which requires a
+// filesystem path to stage and to match against the unstaged list.
+const getActiveFileUri = async (): Promise<vscode.Uri | null> => {
+    const uri = vscode.window.activeTextEditor?.document.uri;
+    if (uri) {
+        if (uri.scheme === "git") {
+            try {
+                const params = JSON.parse(uri.query); // git uris carry {"path":"/abs/path","ref":...}
+                if (params?.path) {
+                    return vscode.Uri.file(params.path);
+                }
+            } catch {
+                // Malformed/empty query — fall through and return the uri unchanged.
+            }
+        }
+        return uri;
+    }
+
+    // Non-textual files (e.g. images) have no activeTextEditor; reuse the clipboard-based path lookup.
+    const path = await getActiveFilePath();
+    return path ? vscode.Uri.file(path) : null;
 };
 
 export function deactivate() {}
