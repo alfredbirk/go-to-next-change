@@ -31,6 +31,21 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(disposable, disposable2, disposable3, disposable4, disposable5, disposable6);
 }
 
+// Matches VS Code's compareFileNames (src/vs/base/common/comparers.ts): a numeric, case-insensitive
+// collator, so the navigation order is IDENTICAL to what the Source Control view shows for file names.
+// BUG FIX: the comparators below previously compared the final filename segment with a naive `a < b`,
+// which diverges from VS Code for numbered files (e.g. item-2 vs item-10, v2 vs v10) and some
+// punctuation. That made "go to next change" jump to a file that wasn't the visually-next row in the
+// panel (only "sometimes" — exactly when the naive order disagreed with the collator order).
+const fileNameCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
+const compareFileNames = (a: string, b: string): number => {
+    const result = fileNameCollator.compare(a, b);
+    if (result === 0 && a !== b) {
+        return a < b ? -1 : 1; // numeric collator treats "foo1"/"foo01" as equal — disambiguate for a stable order
+    }
+    return result;
+};
+
 const orderFilesForListView = (a: any, b: any) => {
     // Order files same way as VSCode does it
     // 1) split by folders and compare pairwise
@@ -50,17 +65,21 @@ const orderFilesForListView = (a: any, b: any) => {
             continue;
         }
 
-        if (
-            (i === filenameA.length - 1 && i === filenameB.length - 1) ||
-            (i < filenameA.length - 1 && i < filenameB.length - 1 && partA !== partB)
-        ) {
+        // Both paths are at their FINAL segment -> compare file names with the numeric collator (matches
+        // VS Code's comparePaths, which uses compareFileNames here). This is the fix for the wrong-jump bug.
+        if (i === filenameA.length - 1 && i === filenameB.length - 1) {
+            return compareFileNames(partA, partB);
+        }
+
+        // Both paths are still inside differing DIRECTORY segments -> VS Code compares these naively
+        // (comparePathComponents), so a plain lexicographic compare is correct here.
+        if (i < filenameA.length - 1 && i < filenameB.length - 1) {
             if (partA < partB) {
                 return -1;
             }
             if (partB < partA) {
                 return 1;
             }
-
             return 0;
         }
 
@@ -72,6 +91,8 @@ const orderFilesForListView = (a: any, b: any) => {
             return 1;
         }
     }
+
+    return 0;
 };
 
 const orderFilesForTreeView = (a: any, b: any) => {
@@ -93,17 +114,20 @@ const orderFilesForTreeView = (a: any, b: any) => {
             continue;
         }
 
-        if (
-            (i === filenameA.length - 1 && i === filenameB.length - 1) ||
-            (i < filenameA.length - 1 && i < filenameB.length - 1 && partA !== partB)
-        ) {
+        // Both paths at their FINAL segment -> compare file names with the numeric collator (matches VS
+        // Code's tree-view sort, which uses compareFileNames on the node name). Fixes the wrong-jump bug.
+        if (i === filenameA.length - 1 && i === filenameB.length - 1) {
+            return compareFileNames(partA, partB);
+        }
+
+        // Differing DIRECTORY segments -> naive lexicographic compare (matches VS Code).
+        if (i < filenameA.length - 1 && i < filenameB.length - 1) {
             if (partA < partB) {
                 return -1;
             }
             if (partB < partA) {
                 return 1;
             }
-
             return 0;
         }
 
@@ -115,6 +139,8 @@ const orderFilesForTreeView = (a: any, b: any) => {
             return -1;
         }
     }
+
+    return 0;
 };
 
 // One navigable entry in the changes list. `staged` distinguishes the index (Staged Changes) copy from
