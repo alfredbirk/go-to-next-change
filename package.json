@@ -75,6 +75,11 @@
                     "type": "boolean",
                     "default": true,
                     "description": "Show a confirmation prompt before jumping to the next/previous file when reaching the end of the current file"
+                },
+                "go-to-next-change.revealStagedInSourceControl": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Experimental: also select/highlight staged files in the Source Control view while navigating (works around a VS Code limitation where staged diffs can't be auto-revealed). May cause a brief flash of the file, and for partially-staged files highlights the unstaged copy. Requires scm.autoReveal (on by default)."
                 }
             }
         },

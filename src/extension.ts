@@ -212,6 +212,24 @@ const openChangeEntry = async (entry: FileChange): Promise<void> => {
         await vscode.commands.executeCommand("git.openChange", entry.uri);
         return;
     }
+    // OPT-IN WORKAROUND (go-to-next-change.revealStagedInSourceControl): highlight the staged file in the
+    // Source Control view. VS Code's built-in `scm.autoReveal` can't do this for staged files because the
+    // staged diff opens with a `git:` uri and autoReveal only matches sidebar rows by their `file:` path
+    // (there is NO extension API to select an SCM row directly). Trick: briefly make the plain file the
+    // active editor — autoReveal then finds it (a staged-only file's file: uri lives only in the index
+    // group) and selects/reveals its row — then we open the staged diff over it. autoReveal never CLEARS a
+    // selection on a no-match, so the staged row stays highlighted while the diff is shown. Caveats, which
+    // is why this is off by default: a brief flash of the file before the diff, and for a partially-staged
+    // (dual-state) file autoReveal picks the working-tree row instead (it scans groups back-to-front).
+    const revealStaged = vscode.workspace.getConfiguration("go-to-next-change").get("revealStagedInSourceControl");
+    if (revealStaged) {
+        try {
+            await vscode.window.showTextDocument(entry.uri, { preview: true }); // fires autoReveal -> selects the staged row
+        } catch {
+            // File can't be opened (e.g. a staged deletion) — skip the reveal, still show the diff below.
+        }
+    }
+
     // Staged (index) diff: open HEAD-vs-index explicitly so it works even for a partially-staged file
     // (where git.openChange would otherwise show the working-tree diff). preview:true mirrors single-click
     // SCM behavior so the existing preview-tab handling keeps working. A newly-added file has no HEAD blob;
