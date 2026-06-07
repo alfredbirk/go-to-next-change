@@ -627,15 +627,19 @@ const stageCurrentFileAndGoToNextUnstaged = async () => {
         .sort(isTreeView ? orderFilesForTreeView : orderFilesForListView);
 
     const currentIndex = workingTreeChanges.findIndex(pathMatches);
-    // Current file is in the unstaged list -> land on the one after it. Not in it (e.g. we were viewing
-    // an already-staged file) -> fall back to the first unstaged file.
-    const nextUnstagedFile = currentIndex === -1 ? workingTreeChanges[0] : workingTreeChanges[currentIndex + 1];
+    // Where to land after staging. Current file is in the unstaged list -> the one AFTER it; but if it's the
+    // LAST unstaged file (no "next"), fall back to the PREVIOUS unstaged file so we don't leave you on
+    // nothing. The ?? handles the last-file case; for the only-file case currentIndex-1 is -1 which returns
+    // undefined (-> close below). Not in the list (e.g. we were on an already-staged file) -> first unstaged.
+    const targetUnstagedFile = currentIndex === -1
+        ? workingTreeChanges[0]
+        : (workingTreeChanges[currentIndex + 1] ?? workingTreeChanges[currentIndex - 1]);
 
     // Stage the whole current file — equivalent to clicking the + next to it in the Source Control view.
     await activeRepo.add([currentUri.fsPath]);
 
-    if (!nextUnstagedFile) {
-        // Current was the last (or only) unstaged file — nothing left to review, so close the diff editor.
+    if (!targetUnstagedFile) {
+        // Current was the ONLY unstaged file (no next and no previous) — nothing left to review, so close.
         await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
         return;
     }
@@ -645,7 +649,7 @@ const stageCurrentFileAndGoToNextUnstaged = async () => {
     if (!isPreview) {
         await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
     }
-    await vscode.commands.executeCommand("git.openChange", nextUnstagedFile);
+    await vscode.commands.executeCommand("git.openChange", targetUnstagedFile);
 };
 
 const getActiveFilePath = async (): Promise<string> => {

@@ -19,3 +19,4 @@
 - Navigation now LOOPS: pressing next on the last file wraps to the first (and previous on the first wraps to the last) in a single press, instead of closing the editor and needing an extra press.
 - `shift+alt+z` (stage current + go to next unstaged) now does NOTHING when you're already viewing a *staged* file's diff, instead of jumping to an unstaged file — it's only for working through unstaged files.
 - The current-file badge default is now a louder `🔴` (still configurable via `go-to-next-change.currentFileBadge`).
+- `shift+alt+z` (stage current + go to next unstaged): when you stage the LAST unstaged file, it now lands on the PREVIOUS unstaged file instead of closing the editor. It only closes when that was the only unstaged file left.
