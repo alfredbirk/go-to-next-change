@@ -38,7 +38,15 @@ export function activate(context: vscode.ExtensionContext) {
         onDidChangeFileDecorations: reviewDecoEmitter.event,
         provideFileDecoration(uri) {
             if (currentReviewUri && uri.path.toLowerCase() === currentReviewUri.path.toLowerCase()) {
-                return { badge: "▶", tooltip: "Go to next change: reviewing this file", propagate: false };
+                // Badge text is configurable (default a colorful emoji for maximum visibility). The Source
+                // Control panel ignores decoration `color` (its renderer forces colors:false), so the emoji's
+                // own color is what makes it pop there; the `color` still applies in the Explorer + editor tabs.
+                const badgeSetting = vscode.workspace.getConfiguration("go-to-next-change").get<string>("currentFileBadge", "🔵");
+                if (!badgeSetting) {
+                    return undefined; // empty setting => badge disabled
+                }
+                // Clamp to 2 chars — VS Code rejects a longer badge (would drop the decoration entirely).
+                return { badge: badgeSetting.slice(0, 2), tooltip: "Go to next change: reviewing this file", color: new vscode.ThemeColor("charts.blue"), propagate: false };
             }
             return undefined;
         },
@@ -363,21 +371,20 @@ const openNextFile = async () => {
         return;
     }
 
-    const currentIndex = findCurrentIndex(fileChanges, active);
-
-    // At the end of the list (or list empty) -> nothing more to show, close the diff editor.
-    // (currentIndex === -1, i.e. active file not in the list, falls through and opens the first entry,
-    // matching the original behavior.)
-    if (currentIndex === fileChanges.length - 1) {
-        await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
+    if (fileChanges.length === 0) {
         return;
     }
+    const currentIndex = findCurrentIndex(fileChanges, active);
+
+    // LOOP: wrap to the first file when at the end (one press loops back to the start), instead of closing
+    // the editor. Modulo handles every case: last (len-1) -> 0, not-found (-1) -> 0, middle k -> k+1.
+    const nextIndex = (currentIndex + 1) % fileChanges.length;
 
     const isPreview = vscode.window.tabGroups.activeTabGroup.activeTab?.isPreview;
     if (!isPreview) {
         await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
     }
-    await openChangeEntry(fileChanges[currentIndex + 1]);
+    await openChangeEntry(fileChanges[nextIndex]);
 };
 
 const openPreviousFile = async () => {
@@ -387,19 +394,20 @@ const openPreviousFile = async () => {
         return;
     }
 
-    const currentIndex = findCurrentIndex(fileChanges, active);
-
-    // At the start of the list (currentIndex === 0) or active file not found (-1) -> close the editor.
-    if (currentIndex <= 0) {
-        await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
+    if (fileChanges.length === 0) {
         return;
     }
+    const currentIndex = findCurrentIndex(fileChanges, active);
+
+    // LOOP: wrap to the last file when at the start (one press loops to the end). currentIndex <= 0 covers
+    // both "at the first file" and "active file not found".
+    const prevIndex = currentIndex <= 0 ? fileChanges.length - 1 : currentIndex - 1;
 
     const isPreview = vscode.window.tabGroups.activeTabGroup.activeTab?.isPreview;
     if (!isPreview) {
         await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
     }
-    await openChangeEntry(fileChanges[currentIndex - 1]);
+    await openChangeEntry(fileChanges[prevIndex]);
     await vscode.commands.executeCommand("workbench.action.compareEditor.previousChange");
 };
 
@@ -410,13 +418,11 @@ const getNextFileName = async (): Promise<string | null> => {
         return null;
     }
 
-    const currentIndex = findCurrentIndex(fileChanges, active);
-
-    if (currentIndex === fileChanges.length - 1) {
+    if (fileChanges.length === 0) {
         return null;
     }
-
-    const nextFile = fileChanges[currentIndex + 1]; // currentIndex === -1 -> previews the first entry
+    const currentIndex = findCurrentIndex(fileChanges, active);
+    const nextFile = fileChanges[(currentIndex + 1) % fileChanges.length]; // loops to the first at the end
     return nextFile ? nextFile.uri.path : null;
 };
 
@@ -427,13 +433,11 @@ const getPreviousFileName = async (): Promise<string | null> => {
         return null;
     }
 
-    const currentIndex = findCurrentIndex(fileChanges, active);
-
-    if (currentIndex <= 0) {
+    if (fileChanges.length === 0) {
         return null;
     }
-
-    const previousFile = fileChanges[currentIndex - 1];
+    const currentIndex = findCurrentIndex(fileChanges, active);
+    const previousFile = fileChanges[currentIndex <= 0 ? fileChanges.length - 1 : currentIndex - 1]; // loops to the last at the start
     return previousFile ? previousFile.uri.path : null;
 };
 

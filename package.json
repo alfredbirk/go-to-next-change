@@ -82,6 +82,11 @@
                     "type": "boolean",
                     "default": false,
                     "description": "Experimental: also select/highlight staged files in the Source Control view while navigating (works around a VS Code limitation where staged diffs can't be auto-revealed). May cause a brief flash of the file, and for partially-staged files highlights the unstaged copy. Requires scm.autoReveal (on by default)."
+                },
+                "go-to-next-change.currentFileBadge": {
+                    "type": "string",
+                    "default": "🔵",
+                    "description": "The badge shown on the file you're currently reviewing, in the Source Control panel (and Explorer/tabs). Max 2 characters — an emoji renders in colour and is the most visible option (the Source Control panel ignores decoration colours). Examples: 🔵 🟢 👉 ▶️ ⭐ ●. Set to empty to disable the badge."
                 }
             }
         },
