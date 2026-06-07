@@ -296,8 +296,22 @@ const findCurrentIndex = (fileChanges: FileChange[], active: ActiveChange): numb
             return exact;
         }
     }
-    // Side unknown, or no exact match — fall back to the first path match (legacy behavior).
-    return fileChanges.findIndex(pathMatches);
+
+    const firstPath = fileChanges.findIndex(pathMatches);
+    if (firstPath === -1) {
+        return -1; // active file isn't a known change at all
+    }
+
+    // AMBIGUITY GUARD (fixes an intermittent "previous jumps to the last change" bug): when the side is
+    // UNKNOWN (the active tab wasn't a readable diff so getActiveChange fell back to staged=null) AND the
+    // file appears in BOTH the staged and unstaged groups (a dual-state file), a path-only match would just
+    // guess the first (staged) copy. Returning that uncertain index let the new looping fling navigation to
+    // the wrong end of the list. Return -1 instead so callers bail and do nothing; the next press (once the
+    // diff tab is readable and the side is known) navigates correctly.
+    if (active.staged === null && fileChanges.filter(pathMatches).length > 1) {
+        return -1;
+    }
+    return firstPath;
 };
 
 // Replicates vscode/extensions/git/src/uri.ts toGitUri: a `git`-scheme uri whose JSON query carries the
@@ -385,9 +399,14 @@ const openNextFile = async () => {
         return;
     }
     const currentIndex = findCurrentIndex(fileChanges, active);
+    if (currentIndex === -1) {
+        // Couldn't reliably locate the active file (e.g. its diff side wasn't readable for a dual-state
+        // file). Bail rather than guess — guessing turned into a jump to the wrong file. A re-press works.
+        return;
+    }
 
     // LOOP: wrap to the first file when at the end (one press loops back to the start), instead of closing
-    // the editor. Modulo handles every case: last (len-1) -> 0, not-found (-1) -> 0, middle k -> k+1.
+    // the editor. At the last index, (len-1 + 1) % len = 0 -> first file.
     const nextIndex = (currentIndex + 1) % fileChanges.length;
 
     const isPreview = vscode.window.tabGroups.activeTabGroup.activeTab?.isPreview;
@@ -408,10 +427,17 @@ const openPreviousFile = async () => {
         return;
     }
     const currentIndex = findCurrentIndex(fileChanges, active);
+    if (currentIndex === -1) {
+        // BUG FIX (intermittent "previous jumps to the last staged change"): the old code did
+        // `currentIndex <= 0 ? last : currentIndex - 1`, which treated "not found" (-1) the SAME as "at the
+        // first file" (0) and wrapped to the LAST file. When the diff side wasn't readable for a dual-state
+        // file, findCurrentIndex returned -1 and "previous" lurched to the last change. Now we bail on -1;
+        // the next press (once the diff tab is readable) navigates correctly. Genuine index 0 still loops.
+        return;
+    }
 
-    // LOOP: wrap to the last file when at the start (one press loops to the end). currentIndex <= 0 covers
-    // both "at the first file" and "active file not found".
-    const prevIndex = currentIndex <= 0 ? fileChanges.length - 1 : currentIndex - 1;
+    // LOOP: wrap to the last file only when genuinely at the first file (index 0).
+    const prevIndex = currentIndex === 0 ? fileChanges.length - 1 : currentIndex - 1;
 
     const isPreview = vscode.window.tabGroups.activeTabGroup.activeTab?.isPreview;
     if (!isPreview) {
@@ -432,6 +458,9 @@ const getNextFileName = async (): Promise<string | null> => {
         return null;
     }
     const currentIndex = findCurrentIndex(fileChanges, active);
+    if (currentIndex === -1) {
+        return null; // can't locate current file -> no reliable "next" to show in the confirm prompt
+    }
     const nextFile = fileChanges[(currentIndex + 1) % fileChanges.length]; // loops to the first at the end
     return nextFile ? nextFile.uri.path : null;
 };
@@ -447,7 +476,10 @@ const getPreviousFileName = async (): Promise<string | null> => {
         return null;
     }
     const currentIndex = findCurrentIndex(fileChanges, active);
-    const previousFile = fileChanges[currentIndex <= 0 ? fileChanges.length - 1 : currentIndex - 1]; // loops to the last at the start
+    if (currentIndex === -1) {
+        return null; // can't locate current file -> no reliable "previous" to show in the confirm prompt
+    }
+    const previousFile = fileChanges[currentIndex === 0 ? fileChanges.length - 1 : currentIndex - 1]; // loops to the last at the start
     return previousFile ? previousFile.uri.path : null;
 };
 
