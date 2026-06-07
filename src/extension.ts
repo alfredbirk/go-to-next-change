@@ -1,16 +1,8 @@
 import * as vscode from "vscode";
-import * as fs from "fs";
-import * as path from "path";
-import * as crypto from "crypto";
 
 let isNavigationPromptOpen = false;
 
 export function activate(context: vscode.ExtensionContext) {
-    // OPT-IN: patch VS Code's own workbench so the built-in Git Source Control view highlights the STAGED
-    // row when navigating to a staged file (incl. partially-staged "dual-state" files). This is the only
-    // way to drive the real Git rows — there is no extension API for it. Runs on every activate so it
-    // self-heals after a VS Code update wipes the patch. Fire-and-forget; never block activation.
-    patchWorkbenchForStagedReveal().catch(() => { /* best effort; failures are surfaced inside */ });
     let disposable = vscode.commands.registerCommand("go-to-next-change.go-to-next-scm-change", async () => {
         await goToNextDiff();
     });
@@ -36,137 +28,8 @@ export function activate(context: vscode.ExtensionContext) {
         await stageCurrentFileAndGoToNextUnstaged();
     });
 
-    // Escape hatch: restore VS Code from the .gtnc-bak backups (undo the workbench patch).
-    let disposable7 = vscode.commands.registerCommand("go-to-next-change.restore-vscode-patch", async () => {
-        await restoreWorkbenchPatch();
-    });
-
-    context.subscriptions.push(disposable, disposable2, disposable3, disposable4, disposable5, disposable6, disposable7);
+    context.subscriptions.push(disposable, disposable2, disposable3, disposable4, disposable5, disposable6);
 }
-
-// ---- VS Code workbench self-patch (staged Source Control row reveal) -------------------------------
-// Why this exists: VS Code's scm.autoReveal selects the SCM row matching the active editor by file: URI.
-// For a "dual-state" file (staged AND with further unstaged edits) the staged + unstaged rows share the
-// SAME file: URI, so auto-reveal always picks the working-tree (unstaged) row; and a staged diff's editor
-// URI is a `git:` URI that matches NO row at all. There is NO extension API to select a specific SCM row,
-// so the only way to fix the BUILT-IN Git rows is to patch VS Code's own renderer. We rewrite the
-// onDidActiveEditorChange handler so that when the active editor is a `git:` staged diff it (a) maps the
-// URI back to the on-disk file path so it matches a row, and (b) searches the index ("Staged Changes")
-// group first. The patch lives in VS Code's bundle on disk, so a VS Code update wipes it — we therefore
-// re-apply on every activate (self-healing). We also rewrite product.json's checksum so the "installation
-// appears corrupt" warning doesn't fire, and keep .gtnc-bak backups so it's fully reversible.
-const workbenchBundlePath = (): string => path.join(vscode.env.appRoot, "out", "vs", "workbench", "workbench.desktop.main.js");
-const productJsonPath = (): string => path.join(vscode.env.appRoot, "product.json");
-
-const patchWorkbenchForStagedReveal = async (): Promise<void> => {
-    if (!vscode.workspace.getConfiguration("go-to-next-change").get("patchVSCodeForStagedReveal")) {
-        return; // opt-in only — it modifies VS Code's own files
-    }
-
-    const bundlePath = workbenchBundlePath();
-    let src: string;
-    try {
-        src = fs.readFileSync(bundlePath, "utf8");
-    } catch {
-        return; // can't read the bundle (unexpected layout) — bail quietly
-    }
-
-    if (src.includes("__gtncPI")) {
-        return; // already patched (idempotent marker)
-    }
-
-    // Edit A: rewrite a `git:` (staged/index) active-editor URI to the file path + set the prefer-index
-    // flag, and bypass the "already selected" short-circuit when prefer-index (so dual-state still
-    // reveals). The uri variable name is captured (g2) so this survives minor minification renames.
-    const reA = /(let ([A-Za-z0-9_$]+)=[A-Za-z0-9_$]+\.getOriginalUri\(this\.editorService\.activeEditor,\{supportSideBySide:1\}\);)\2&&\(this\.tree\.getFocus\(\)/;
-    // Edit B: when prefer-index, scan the `index` resource group before the working-tree group.
-    const reB = /for\(let ([A-Za-z0-9_$]+)=([A-Za-z0-9_$]+)\.provider\.groups\.length-1;\1>=0;\1--\)\{/;
-
-    if (!reA.test(src) || !reB.test(src)) {
-        // Anchors gone — almost certainly a VS Code version whose internals changed shape. Fail safe.
-        vscode.window.showWarningMessage(
-            "Go to next change: couldn't patch this VS Code version for staged Source Control highlighting (its internals changed). Navigation still works; only the staged-row highlight is affected."
-        );
-        return;
-    }
-
-    let patched = src.replace(reA, (_m, g1: string, g2: string) =>
-        `${g1}var __gtncPI=false;if(${g2}&&${g2}.scheme==="git"){try{var __gtncQ=JSON.parse(${g2}.query);if(__gtncQ&&__gtncQ.path){__gtncPI=(__gtncQ.ref==="");${g2}=${g2}.with({scheme:"file",path:__gtncQ.path,query:"",fragment:""})}}catch(__gtncE){}}${g2}&&(!__gtncPI&&this.tree.getFocus()`
-    );
-    patched = patched.replace(reB, (_m, g1: string, g2: string) =>
-        `var __gtncGs=${g2}.provider.groups,__gtncOrder=[];for(var __gi=__gtncGs.length-1;__gi>=0;__gi--)__gtncOrder.push(__gi);if(__gtncPI)__gtncOrder.sort((a,b)=>((__gtncGs[a].id==="index")?0:1)-((__gtncGs[b].id==="index")?0:1));for(let ${g1} of __gtncOrder){`
-    );
-
-    if (!patched.includes("__gtncPI")) {
-        return; // replacement produced nothing usable — bail without writing
-    }
-
-    // Back up once, then write the patched bundle.
-    try {
-        if (!fs.existsSync(bundlePath + ".gtnc-bak")) {
-            fs.copyFileSync(bundlePath, bundlePath + ".gtnc-bak");
-        }
-        fs.writeFileSync(bundlePath, patched, "utf8");
-    } catch {
-        vscode.window.showErrorMessage(
-            "Go to next change: couldn't write the VS Code patch (the app files may be read-only / need permission). Staged highlighting is disabled."
-        );
-        return;
-    }
-
-    // Update product.json's checksum for the bundle so the "installation appears corrupt" nag doesn't fire.
-    try {
-        const digest = crypto.createHash("sha256").update(fs.readFileSync(bundlePath)).digest("base64").replace(/=+$/, "");
-        const productPath = productJsonPath();
-        const prod = fs.readFileSync(productPath, "utf8");
-        const m = prod.match(/("vs\/workbench\/workbench\.desktop\.main\.js"\s*:\s*")([^"]+)(")/);
-        if (m && m.index !== undefined) {
-            if (!fs.existsSync(productPath + ".gtnc-bak")) {
-                fs.copyFileSync(productPath, productPath + ".gtnc-bak");
-            }
-            const updated = prod.slice(0, m.index) + m[1] + digest + m[3] + prod.slice(m.index + m[0].length);
-            fs.writeFileSync(productPath, updated, "utf8");
-        }
-    } catch {
-        // best-effort; worst case is a one-time corruption nag the user can dismiss
-    }
-
-    // The running window already loaded the OLD bundle, so the patch only takes effect after a reload.
-    // Tell the user explicitly (this notification is a required part of the feature).
-    const choice = await vscode.window.showInformationMessage(
-        "Go to next change: patched VS Code so staged files highlight correctly in Source Control. Reload the window (or restart VS Code) to apply.",
-        "Reload Window"
-    );
-    if (choice === "Reload Window") {
-        await vscode.commands.executeCommand("workbench.action.reloadWindow");
-    }
-};
-
-// Undo the workbench patch by restoring the .gtnc-bak backups (command: Restore VS Code).
-const restoreWorkbenchPatch = async (): Promise<void> => {
-    let restored = false;
-    for (const f of [workbenchBundlePath(), productJsonPath()]) {
-        try {
-            if (fs.existsSync(f + ".gtnc-bak")) {
-                fs.copyFileSync(f + ".gtnc-bak", f);
-                restored = true;
-            }
-        } catch {
-            // ignore individual failures; reported below
-        }
-    }
-    if (restored) {
-        const choice = await vscode.window.showInformationMessage(
-            "Go to next change: restored VS Code's original files. Reload the window to apply. (Also set go-to-next-change.patchVSCodeForStagedReveal to false to stop re-patching.)",
-            "Reload Window"
-        );
-        if (choice === "Reload Window") {
-            await vscode.commands.executeCommand("workbench.action.reloadWindow");
-        }
-    } else {
-        vscode.window.showWarningMessage("Go to next change: no patch backup found to restore.");
-    }
-};
 
 // Matches VS Code's compareFileNames (src/vs/base/common/comparers.ts): a numeric, case-insensitive
 // collator, so the navigation order is IDENTICAL to what the Source Control view shows for file names.

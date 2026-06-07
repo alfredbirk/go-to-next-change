@@ -56,10 +56,6 @@
             {
                 "command": "go-to-next-change.stage-and-go-to-next-changed-file",
                 "title": "Stage current file and go to next unstaged change"
-            },
-            {
-                "command": "go-to-next-change.restore-vscode-patch",
-                "title": "Go to next change: Restore VS Code (undo workbench patch)"
             }
         ],
         "configuration": {
@@ -83,12 +79,7 @@
                 "go-to-next-change.revealStagedInSourceControl": {
                     "type": "boolean",
                     "default": false,
-                    "description": "Experimental: also select/highlight staged files in the Source Control view while navigating (works around a VS Code limitation where staged diffs can't be auto-revealed). May cause a brief flash of the file, and for partially-staged files highlights the unstaged copy. Requires scm.autoReveal (on by default). Superseded by go-to-next-change.patchVSCodeForStagedReveal — leave this OFF if the patch is enabled."
-                },
-                "go-to-next-change.patchVSCodeForStagedReveal": {
-                    "type": "boolean",
-                    "default": false,
-                    "description": "EXPERIMENTAL — modifies VS Code's OWN app files. Patches the built-in Source Control view so STAGED files (including partially-staged 'dual-state' files) are highlighted/selected when you navigate to them — the real Git rows, which no extension API can drive. The patch is re-applied automatically after VS Code updates, rewrites product.json's checksum to avoid the 'installation appears corrupt' warning, and is fully reversible via the 'Go to next change: Restore VS Code (undo workbench patch)' command. Requires a window reload to take effect; you'll be prompted. Note: if VS Code is installed where its files aren't writable, patching will fail with a notice."
+                    "description": "Experimental: also select/highlight staged files in the Source Control view while navigating (works around a VS Code limitation where staged diffs can't be auto-revealed). May cause a brief flash of the file, and for partially-staged files highlights the unstaged copy. Requires scm.autoReveal (on by default)."
                 }
             }
         },
