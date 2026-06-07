@@ -28,8 +28,67 @@ export function activate(context: vscode.ExtensionContext) {
         await stageCurrentFileAndGoToNextUnstaged();
     });
 
-    context.subscriptions.push(disposable, disposable2, disposable3, disposable4, disposable5, disposable6);
+    // OVERLAY (supported API, no patching): badge the file currently open as a diff with a "▶" marker via a
+    // FileDecorationProvider. The badge renders on the row in the built-in Source Control panel (and the
+    // Explorer/tabs), giving a "you are here" indicator on the real Git rows. Caveat: decorations key on the
+    // file URI, so a partially-staged (dual-state) file gets the badge on BOTH its staged and unstaged rows.
+    const reviewDecoEmitter = new vscode.EventEmitter<vscode.Uri[]>();
+    let currentReviewUri: vscode.Uri | undefined; // file: URI of the file currently shown as a diff
+    const reviewDecorationProvider: vscode.FileDecorationProvider = {
+        onDidChangeFileDecorations: reviewDecoEmitter.event,
+        provideFileDecoration(uri) {
+            if (currentReviewUri && uri.path.toLowerCase() === currentReviewUri.path.toLowerCase()) {
+                return { badge: "▶", tooltip: "Go to next change: reviewing this file", propagate: false };
+            }
+            return undefined;
+        },
+    };
+    // Recompute the current review file whenever the active editor/tab changes, and refresh the decoration
+    // for both the old and new file so the badge moves with you.
+    const refreshReviewDecoration = () => {
+        const prev = currentReviewUri;
+        currentReviewUri = currentReviewFileUri();
+        const changed: vscode.Uri[] = [];
+        if (prev) {
+            changed.push(prev);
+        }
+        if (currentReviewUri && (!prev || prev.path.toLowerCase() !== currentReviewUri.path.toLowerCase())) {
+            changed.push(currentReviewUri);
+        }
+        if (changed.length > 0) {
+            reviewDecoEmitter.fire(changed);
+        }
+    };
+
+    context.subscriptions.push(
+        disposable, disposable2, disposable3, disposable4, disposable5, disposable6,
+        reviewDecoEmitter,
+        vscode.window.registerFileDecorationProvider(reviewDecorationProvider),
+        vscode.window.tabGroups.onDidChangeTabs(() => refreshReviewDecoration()),
+        vscode.window.onDidChangeActiveTextEditor(() => refreshReviewDecoration())
+    );
 }
+
+// Returns the on-disk file: URI of the diff currently open in the active tab (resolving a staged diff's
+// `git:` modified side back to the file path), or undefined when the active tab isn't a diff.
+const currentReviewFileUri = (): vscode.Uri | undefined => {
+    const input = vscode.window.tabGroups.activeTabGroup.activeTab?.input;
+    if (input instanceof vscode.TabInputTextDiff) {
+        const m = input.modified;
+        if (m.scheme === "git") {
+            try {
+                const q = JSON.parse(m.query); // git uri query carries the real {path, ref}
+                if (q?.path) {
+                    return vscode.Uri.file(q.path);
+                }
+            } catch {
+                // fall through
+            }
+        }
+        return m.scheme === "file" ? m : vscode.Uri.file(m.path);
+    }
+    return undefined;
+};
 
 // Matches VS Code's compareFileNames (src/vs/base/common/comparers.ts): a numeric, case-insensitive
 // collator, so the navigation order is IDENTICAL to what the Source Control view shows for file names.
