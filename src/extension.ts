@@ -41,7 +41,7 @@ export function activate(context: vscode.ExtensionContext) {
                 // Badge text is configurable (default a colorful emoji for maximum visibility). The Source
                 // Control panel ignores decoration `color` (its renderer forces colors:false), so the emoji's
                 // own color is what makes it pop there; the `color` still applies in the Explorer + editor tabs.
-                const badgeSetting = vscode.workspace.getConfiguration("go-to-next-change").get<string>("currentFileBadge", "🔵");
+                const badgeSetting = vscode.workspace.getConfiguration("go-to-next-change").get<string>("currentFileBadge", "🔴");
                 if (!badgeSetting) {
                     return undefined; // empty setting => badge disabled
                 }
@@ -570,6 +570,13 @@ const stageCurrentFileAndGoToNextUnstaged = async () => {
 
     const currentUri = await getActiveFileUri();
     if (!currentUri) {
+        return;
+    }
+
+    // If the active diff is the STAGED side of a file, there's nothing to stage — do nothing (don't jump
+    // to an unstaged file). This command is for working through UNSTAGED files; on a staged file it no-ops.
+    const activeSide = await getActiveChange();
+    if (activeSide?.staged === true) {
         return;
     }
 

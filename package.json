@@ -85,8 +85,8 @@
                 },
                 "go-to-next-change.currentFileBadge": {
                     "type": "string",
-                    "default": "🔵",
-                    "description": "The badge shown on the file you're currently reviewing, in the Source Control panel (and Explorer/tabs). Max 2 characters — an emoji renders in colour and is the most visible option (the Source Control panel ignores decoration colours). Examples: 🔵 🟢 👉 ▶️ ⭐ ●. Set to empty to disable the badge."
+                    "default": "🔴",
+                    "description": "The badge shown on the file you're currently reviewing, in the Source Control panel (and Explorer/tabs). Max 2 characters — an emoji renders in colour and is the most visible option (the Source Control panel ignores decoration colours). Loud choices: 🔴 🚨 🟥 🔥 ❗ ⭐ 👉. Tip: two emoji (e.g. 🔴🔴) is allowed and renders a bit wider. Set to empty to disable the badge."
                 }
             }
         },
