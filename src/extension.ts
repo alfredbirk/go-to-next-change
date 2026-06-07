@@ -45,8 +45,18 @@ export function activate(context: vscode.ExtensionContext) {
                 if (!badgeSetting) {
                     return undefined; // empty setting => badge disabled
                 }
-                // Clamp to 2 chars — VS Code rejects a longer badge (would drop the decoration entirely).
-                return { badge: badgeSetting.slice(0, 2), tooltip: "Go to next change: reviewing this file", color: new vscode.ThemeColor("charts.blue"), propagate: false };
+                // VS Code caps the badge at 2 GRAPHEMES and drops the whole decoration if it's longer, so take
+                // the first two graphemes. Intl.Segmenter keeps multi-codepoint emoji intact — a naive
+                // slice(0,2) would cut a two-emoji badge like "🔥🔥" down to one (each emoji is 2 UTF-16 units).
+                let badge = badgeSetting;
+                try {
+                    // (Intl as any): Intl.Segmenter may not be in the project's TS lib types, but it exists at runtime.
+                    const seg = new (Intl as any).Segmenter(undefined, { granularity: "grapheme" });
+                    badge = [...seg.segment(badgeSetting)].slice(0, 2).map((s: any) => s.segment).join("");
+                } catch {
+                    badge = Array.from(badgeSetting).slice(0, 2).join(""); // fallback by code point if Segmenter is unavailable
+                }
+                return { badge, tooltip: "Go to next change: reviewing this file", color: new vscode.ThemeColor("charts.blue"), propagate: false };
             }
             return undefined;
         },
