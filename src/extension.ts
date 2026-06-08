@@ -718,6 +718,21 @@ const getActiveFilePath = async (): Promise<string> => {
 // normalize that back to a plain file Uri. Needed by the stage-and-advance command, which requires a
 // filesystem path to stage and to match against the unstaged list.
 const getActiveFileUri = async (): Promise<vscode.Uri | null> => {
+    // PREFER the active TAB's diff (the same source getActiveChange + the badge use) over
+    // vscode.window.activeTextEditor. Clicking a row in the Source Control panel makes its diff the active
+    // TAB but leaves keyboard focus on the panel — so activeTextEditor stays undefined or stale (the
+    // previously focused editor) and never registers the click. The tab-based lookup reflects the file you
+    // actually clicked, keeping stage-and-advance in sync with it. BUG this fixes: click an unstaged file
+    // then press shift+alt+z and it jumped to the FIRST unstaged file instead of the one after the click —
+    // because getActiveFileUri read activeTextEditor, so the clicked file wasn't found in the list (-1 ->
+    // workingTreeChanges[0] top fallback). currentReviewFileUri already resolves a staged git: side to its
+    // on-disk file: path, so this also handles a clicked staged row.
+    const fromTab = currentReviewFileUri();
+    if (fromTab) {
+        return fromTab;
+    }
+
+    // Fallback: a plain (non-diff) text editor that genuinely has focus.
     const uri = vscode.window.activeTextEditor?.document.uri;
     if (uri) {
         if (uri.scheme === "git") {
