@@ -9,7 +9,7 @@
   <br>
 </h1>
 
-<h3 align="center" style="font-size: 14px">Cycle through diffs in changed files with a shortcut. When at the end of a file, it will automatically jump to the next file.</h3>
+<h3 align="center" style="font-size: 14px">Review an entire changeset file by file — from the keyboard. Cycle through every diff with <code>alt+z</code>, and the moment you're happy with a file, press <code>shift+alt+z</code> to stage it and jump straight to the next unstaged one.</h3>
 
 <p align="center">
   <a href="https://marketplace.visualstudio.com/items?itemName=alfredbirk.go-to-next-change">
@@ -20,21 +20,40 @@
 
 ![Final4](https://github.com/alfredbirk/go-to-next-change/assets/11172530/456b380f-e555-404c-9e7d-39b9f3b127ff)
 
+## Why this fork — built for reviewing AI-generated changes
+
+AI / agentic coding produces **large diffs across many files**, and the bottleneck shifts from *writing* code to **reviewing** it. This fork turns that review into a fast keyboard loop:
+
+-   **`alt+z`** cycles through every change, auto-jumping from file to file as you reach the end of each one.
+-   **`shift+alt+z`** — the headline of this fork — **stages the current file and advances to the next unstaged file** the moment you're happy with it.
+
+So you blaze through an AI-generated changeset one file at a time, approving as you go — **entirely from the keyboard, no mouse**. `shift+alt+z` solves the whole bottleneck of agentic-engineering code review: read a file, hit `shift+alt+z`, you're staging it *and* on the next file in one keystroke. When the last unstaged file is staged, there's nothing left to review and the diff closes.
+
+It's an honest navigation-and-staging workflow — not a code analyzer. It doesn't judge the code; it makes *you* the fast reviewer by removing every mouse trip between "this file looks good" and "show me the next one".
+
+### How `shift+alt+z` works (the details)
+
+Stages the whole current file — exactly like clicking the `+` next to it in the Source Control view — then opens the next **unstaged** file's diff:
+
+-   It only acts on **actual changes** (a safety guard stops an accidental `git add` + editor-close while you're editing an unrelated clean file).
+-   It **does nothing when you're viewing an already-staged file's diff** — this command is for working through *unstaged* files, so it won't yank you off to an unrelated one.
+-   If you stage the **last** unstaged file, it lands on the **previous** unstaged file instead of closing. It only closes the editor when that was the *only* unstaged file left — i.e. nothing more to review.
+
 > ### 🍴 This is a fork
 >
-> This is a personal fork of [**alfredbirk/go-to-next-change**](https://github.com/alfredbirk/go-to-next-change) (published under the `ethansk` publisher, installed locally rather than from the Marketplace). It keeps everything the original does and adds several navigation fixes and a "currently reviewing" marker. See [**What this fork changes (and why)**](#what-this-fork-changes-and-why) for the full rundown. All credit for the original extension goes to [Alfred Birk](https://github.com/alfredbirk).
+> This is a personal fork of [**alfredbirk/go-to-next-change**](https://github.com/alfredbirk/go-to-next-change) (published under the `ethansk` publisher, installed locally rather than from the Marketplace). It keeps everything the original does and adds the stage-and-advance workflow above, several navigation fixes, and a "currently reviewing" marker. See [**What this fork changes (and why)**](#what-this-fork-changes-and-why) for the full rundown. All credit for the original extension goes to [Alfred Birk](https://github.com/alfredbirk).
 
 ## Features
 
+-   **(fork)** Stage current file & go to next unstaged file: `shift+alt+z` — the review-and-stage loop above
 -   Go to next git change: `alt+z` / `opt+z`
 -   Go to previous git change: `alt+a` / `opt+a`
 
 ## Other features
 
 -   Revert selected changes and save file: `alt+q` / `opt+q`
--   Go to next changed file: `ctrl+alt+z` / `cmd+opt+z`
--   Go to previous changed file: `ctrl+alt+a` / `cmd+opt+a`
--   **(fork)** Stage current file & go to next unstaged file: `shift+alt+z`
+-   Go to next changed file: `ctrl+alt+z` / `cmd+alt+z`
+-   Go to previous changed file: `ctrl+alt+a` / `cmd+alt+a`
 
 ## If you use Tree view
 
@@ -66,13 +85,7 @@ Everything below is **additive** — the original keybindings and behaviour are 
 
 ### 4. Stage-and-advance: `shift+alt+z`
 
-**What:** Stages the whole current file (same as clicking the `+` in Source Control) and moves you to the next **unstaged** file, so you can review-and-stage in one flow without the mouse.
-
-**Why / the details:**
-
--   It only acts on actual changes (a safety guard prevents an accidental `git add` + editor-close while editing an unrelated clean file).
--   It **does nothing if you're already viewing a staged file's diff** — this command is for working through *unstaged* files, so it won't yank you off to an unrelated unstaged file.
--   If you stage the **last** unstaged file, it lands on the **previous** unstaged file instead of closing the editor. It only closes when that was the *only* unstaged file left (nothing more to review).
+**What:** Stages the whole current file (same as clicking the `+` in Source Control) and moves you to the next **unstaged** file, so you can review-and-stage in one flow without the mouse. This is the fork's headline feature — see [**Why this fork**](#why-this-fork--built-for-reviewing-ai-generated-changes) at the top for the full review-loop story and the safety details.
 
 ### 5. A "currently reviewing" badge
 
