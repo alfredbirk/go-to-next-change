@@ -108,25 +108,41 @@ const isChangeFileUri = (uri: vscode.Uri): boolean => {
     }
 };
 
+// Resolves any diff-side / editor uri to the underlying on-disk file: uri. Handles git: uris (the real path
+// is in the JSON query — staged/HEAD/index sides), plain file: uris, and any other scheme (fall back to the
+// uri's own .path). Returns undefined only for a genuinely empty/absent side. This is the GENERAL resolver
+// that lets the badge work for every change type without special-casing each git status.
+const toFilePathUri = (uri: vscode.Uri | undefined): vscode.Uri | undefined => {
+    if (!uri) {
+        return undefined;
+    }
+    if (uri.scheme === "file") {
+        return uri;
+    }
+    if (uri.scheme === "git") {
+        try {
+            const q = JSON.parse(uri.query); // git uri query carries {"path":"/abs/path","ref":...}
+            if (q?.path) {
+                return vscode.Uri.file(q.path);
+            }
+        } catch {
+            // malformed/empty query — fall through to the uri's own path
+        }
+    }
+    return uri.path ? vscode.Uri.file(uri.path) : undefined;
+};
+
 const currentReviewFileUri = (): vscode.Uri | undefined => {
     const input = vscode.window.tabGroups.activeTabGroup.activeTab?.input;
     if (input instanceof vscode.TabInputTextDiff) {
-        const m = input.modified;
-        if (m.scheme === "git") {
-            try {
-                const q = JSON.parse(m.query); // git uri query carries the real {path, ref}
-                if (q?.path) {
-                    return vscode.Uri.file(q.path);
-                }
-            } catch {
-                // fall through
-            }
-        }
-        return m.scheme === "file" ? m : vscode.Uri.file(m.path);
+        // Resolve the file path from EITHER side of the diff. A DELETED file has no working (modified) side so
+        // its path is on the original (HEAD) side; an ADDED file has no original; a MODIFIED file has both.
+        // Trying modified-then-original covers modify / add / delete / rename / staged variants generally,
+        // instead of special-casing each git status. (Bug: the badge didn't follow deleted files.)
+        return toFilePathUri(input.modified) ?? toFilePathUri(input.original);
     }
-    // Untracked/new files open as a PLAIN file editor (vscode.open), not a diff, so they aren't a
-    // TabInputTextDiff. Badge them too — but only when the file is actually a change, otherwise the badge
-    // would follow every ordinary file you open. (Bug: the fire badge didn't follow untracked files.)
+    // Untracked/new files open as a PLAIN file editor (vscode.open), not a diff. Badge them too — but only
+    // when the file is actually a change, so the badge doesn't follow every ordinary file you open.
     if (input instanceof vscode.TabInputText && input.uri.scheme === "file" && isChangeFileUri(input.uri)) {
         return input.uri;
     }
