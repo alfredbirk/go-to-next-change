@@ -141,10 +141,18 @@ const currentReviewFileUri = (): vscode.Uri | undefined => {
         // instead of special-casing each git status. (Bug: the badge didn't follow deleted files.)
         return toFilePathUri(input.modified) ?? toFilePathUri(input.original);
     }
-    // Untracked/new files open as a PLAIN file editor (vscode.open), not a diff. Badge them too — but only
-    // when the file is actually a change, so the badge doesn't follow every ordinary file you open.
-    if (input instanceof vscode.TabInputText && input.uri.scheme === "file" && isChangeFileUri(input.uri)) {
-        return input.uri;
+    // A single editor (not a diff) — git opens some changes this way via `vscode.open`:
+    //   • untracked/new files  -> the plain file: uri (no original to diff against)
+    //   • DELETED files        -> the HEAD content under a git: uri (no working file to diff against)
+    // Resolve EITHER form to the on-disk path via toFilePathUri (which decodes a git: uri's path), and badge
+    // it only when it's an actual change so the badge doesn't follow every ordinary file you open.
+    // (THE deleted-file bug, confirmed in git's getResources: a deletion has modified===undefined and opens
+    // as a git: single editor — the old file:-scheme-only check skipped it, so the badge never matched.)
+    if (input instanceof vscode.TabInputText) {
+        const resolved = toFilePathUri(input.uri);
+        if (resolved && isChangeFileUri(resolved)) {
+            return resolved;
+        }
     }
     return undefined;
 };
