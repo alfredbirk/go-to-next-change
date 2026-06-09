@@ -228,6 +228,27 @@ interface FileChange {
     staged: boolean;
 }
 
+// Unstaged file uris for a repo = tracked working-tree changes PLUS untracked (new) files, deduped by path
+// and sorted to match the Source Control "Changes" group (VS Code's default "mixed" mode shows untracked
+// there). The git API keeps untracked files (Status.UNTRACKED = 7) in state.untrackedChanges; depending on
+// the git.untrackedChanges setting they can also appear in workingTreeChanges — so we read BOTH and dedupe by
+// path. IGNORED files (status 8) are dropped. git.openChange opens an untracked file as a diff against an
+// empty original (same as clicking its row), so untracked files navigate like any other entry.
+// BUG FIX: the old code filtered untracked out everywhere (status !== 7), so a brand-new file was never
+// navigated to or advanced to by shift+alt+z — it "wasn't even considered". New files are first-class now.
+const getUnstagedUris = (repo: any, isTreeView: boolean): vscode.Uri[] => {
+    const working: any[] = repo.state.workingTreeChanges ?? [];
+    const untracked: any[] = repo.state.untrackedChanges ?? [];
+    const byPath = new Map<string, vscode.Uri>();
+    for (const change of [...working, ...untracked]) {
+        if (change.status === 8) {
+            continue; // skip IGNORED files (Status.IGNORED) — they're not real changes to review
+        }
+        byPath.set(change.uri.path.toLowerCase(), change.uri); // dedupe: a file can appear in both groups
+    }
+    return [...byPath.values()].sort(isTreeView ? orderFilesForTreeView : orderFilesForListView);
+};
+
 const getFileChanges = async (): Promise<FileChange[]> => {
     const gitExtension = vscode.extensions.getExtension<any>("vscode.git")!.exports;
     const git = gitExtension.getAPI(1);
@@ -241,11 +262,9 @@ const getFileChanges = async (): Promise<FileChange[]> => {
         .sort(isTreeView ? orderFilesForTreeView : orderFilesForListView)
         .map((uri: vscode.Uri) => ({ uri, staged: true }));
 
-    const workingTreeChanges: FileChange[] = activeRepo.state.workingTreeChanges
-        .filter((file: any) => file.status !== 7)
-        .map((file: any) => file.uri)
-        .sort(isTreeView ? orderFilesForTreeView : orderFilesForListView)
-        .map((uri: vscode.Uri) => ({ uri, staged: false }));
+    // Unstaged group = tracked working-tree changes PLUS untracked (new) files (see getUnstagedUris), tagged
+    // unstaged. Untracked files used to be filtered out here, so they were skipped by navigation entirely.
+    const workingTreeChanges: FileChange[] = getUnstagedUris(activeRepo, !!isTreeView).map((uri) => ({ uri, staged: false }));
 
     // BUG FIX: a file that is partially staged (or staged and then edited again) appears in BOTH
     // indexChanges and workingTreeChanges with the SAME on-disk path — so it shows twice here, just as it
@@ -325,8 +344,14 @@ const toGitUri = (uri: vscode.Uri, ref: string): vscode.Uri => {
 // Opens the diff for a single list entry on the correct (staged vs unstaged) side.
 const openChangeEntry = async (entry: FileChange): Promise<void> => {
     if (!entry.staged) {
-        // Working-tree (unstaged) diff: git.openChange opens this side correctly.
-        await vscode.commands.executeCommand("git.openChange", entry.uri);
+        // Working-tree (unstaged) diff — git.openChange opens this side correctly, including untracked/new
+        // files (it shows them as a diff against an empty original, the same as clicking the row). Defensive
+        // fallback: if a diff genuinely can't be produced, open the file itself so the command never no-ops.
+        try {
+            await vscode.commands.executeCommand("git.openChange", entry.uri);
+        } catch {
+            await vscode.window.showTextDocument(entry.uri, { preview: true });
+        }
         return;
     }
     // OPT-IN WORKAROUND (go-to-next-change.revealStagedInSourceControl): highlight the staged file in the
@@ -647,16 +672,11 @@ const stageCurrentFileAndGoToNextUnstaged = async () => {
 
     // Work out the next unstaged file BEFORE staging. activeRepo.state updates asynchronously after a
     // stage, so reading the list afterwards would see a stale snapshot (current file still present) or
-    // shifted indices. Capturing the target up-front makes where-we-land deterministic. We only look at
-    // workingTreeChanges (the tracked unstaged group). NOTE: untracked/new files (status === 7) are
-    // excluded from the "next" target on purpose — git.openChange can't open a diff for them, so they
-    // aren't part of this extension's navigation model (consistent with alt+z). Staging the CURRENT file
-    // still works even when it's untracked.
+    // shifted indices. Capturing the target up-front makes where-we-land deterministic. The unstaged list
+    // now INCLUDES untracked/new files (see getUnstagedUris) so stage-and-advance lands on a brand-new file
+    // too — git.openChange opens them as a diff vs an empty original, so they're navigable like any other.
     const isTreeView = vscode.workspace.getConfiguration("go-to-next-change").get("treeView");
-    const workingTreeChanges = activeRepo.state.workingTreeChanges
-        .filter((file: any) => file.status !== 7)
-        .map((file: any) => file.uri)
-        .sort(isTreeView ? orderFilesForTreeView : orderFilesForListView);
+    const workingTreeChanges = getUnstagedUris(activeRepo, !!isTreeView);
 
     const currentIndex = workingTreeChanges.findIndex(pathMatches);
     // Where to land after staging. Current file is in the unstaged list -> the one AFTER it; but if it's the
