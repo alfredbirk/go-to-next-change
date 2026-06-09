@@ -89,6 +89,25 @@ export function activate(context: vscode.ExtensionContext) {
 
 // Returns the on-disk file: URI of the diff currently open in the active tab (resolving a staged diff's
 // `git:` modified side back to the file path), or undefined when the active tab isn't a diff.
+// True if the uri is a current change (staged, unstaged, or untracked) in its repo. Used to decide whether to
+// badge a PLAIN-file editor tab: untracked/new files open as a plain file (git.openChange resolves to
+// vscode.open, NOT vscode.diff, because an untracked file has no original side to diff against), so the badge
+// must recognize them — but ONLY when they're an actual change, so it doesn't follow every random file you open.
+const isChangeFileUri = (uri: vscode.Uri): boolean => {
+    try {
+        const git = vscode.extensions.getExtension<any>("vscode.git")?.exports?.getAPI(1);
+        const repo = git?.getRepository(uri) ?? git?.repositories?.[0];
+        if (!repo) {
+            return false;
+        }
+        const p = uri.path.toLowerCase();
+        const inAny = (changes: any[]) => (changes ?? []).some((c: any) => c.uri.path.toLowerCase() === p);
+        return inAny(repo.state.indexChanges) || inAny(repo.state.workingTreeChanges) || inAny(repo.state.untrackedChanges);
+    } catch {
+        return false; // git extension not ready / API shape changed — just don't badge
+    }
+};
+
 const currentReviewFileUri = (): vscode.Uri | undefined => {
     const input = vscode.window.tabGroups.activeTabGroup.activeTab?.input;
     if (input instanceof vscode.TabInputTextDiff) {
@@ -104,6 +123,12 @@ const currentReviewFileUri = (): vscode.Uri | undefined => {
             }
         }
         return m.scheme === "file" ? m : vscode.Uri.file(m.path);
+    }
+    // Untracked/new files open as a PLAIN file editor (vscode.open), not a diff, so they aren't a
+    // TabInputTextDiff. Badge them too — but only when the file is actually a change, otherwise the badge
+    // would follow every ordinary file you open. (Bug: the fire badge didn't follow untracked files.)
+    if (input instanceof vscode.TabInputText && input.uri.scheme === "file" && isChangeFileUri(input.uri)) {
+        return input.uri;
     }
     return undefined;
 };
