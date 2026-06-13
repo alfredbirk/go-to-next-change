@@ -25,7 +25,13 @@ export function activate(context: vscode.ExtensionContext) {
     });
 
     let disposable6 = vscode.commands.registerCommand("go-to-next-change.stage-and-go-to-next-changed-file", async () => {
-        await stageCurrentFileAndGoToNextUnstaged();
+        await stageCurrentFileAndAdvance("next");
+    });
+
+    // Mirror of disposable6 for reverse-order (bottom-to-top) review: stage the current file, then jump to the
+    // PREVIOUS unstaged file instead of the next. Bound to "shift + previous" so it parallels "shift + next".
+    let disposable7 = vscode.commands.registerCommand("go-to-next-change.stage-and-go-to-previous-changed-file", async () => {
+        await stageCurrentFileAndAdvance("previous");
     });
 
     // OVERLAY (supported API, no patching): badge the file currently open as a diff with a "▶" marker via a
@@ -79,7 +85,7 @@ export function activate(context: vscode.ExtensionContext) {
     };
 
     context.subscriptions.push(
-        disposable, disposable2, disposable3, disposable4, disposable5, disposable6,
+        disposable, disposable2, disposable3, disposable4, disposable5, disposable6, disposable7,
         reviewDecoEmitter,
         vscode.window.registerFileDecorationProvider(reviewDecorationProvider),
         vscode.window.tabGroups.onDidChangeTabs(() => refreshReviewDecoration()),
@@ -680,7 +686,11 @@ const goToLastOrPreviousFile = async () => {
 
 // FEATURE (shift+alt+z): stage the whole current file, then jump straight to the next UNSTAGED file so
 // you can review-and-stage without reaching for the mouse to click the + each time.
-const stageCurrentFileAndGoToNextUnstaged = async () => {
+// Stages the current file, then opens the adjacent unstaged file in `direction`. Shared by both
+// stage-and-advance commands: "next" advances down the list (top-to-bottom review, shift + next), "previous"
+// moves up (bottom-to-top review, shift + previous). Only the landing-target differs; everything else (the
+// staged-side no-op, the safety guard, the untracked-aware list, the editor handling) is identical.
+const stageCurrentFileAndAdvance = async (direction: "next" | "previous") => {
     const gitExtension = vscode.extensions.getExtension<any>("vscode.git")!.exports;
     const git = gitExtension.getAPI(1);
 
@@ -707,8 +717,8 @@ const stageCurrentFileAndGoToNextUnstaged = async () => {
     const pathMatches = (uri: vscode.Uri) => uri.path.toLowerCase().endsWith(currentNormalized);
 
     // SAFETY GUARD: only act if the active file is actually a change (staged, unstaged, or untracked).
-    // Without this, an accidental shift+alt+z while editing a clean/unrelated file would run git add as a
-    // no-op and then close that editor — a nasty surprise. Untracked is included so staging a brand-new
+    // Without this, an accidental stage-and-advance shortcut while editing a clean/unrelated file would run
+    // git add as a no-op and then close that editor — a nasty surprise. Untracked is included so staging a brand-new
     // file still works; navigation below stays within tracked unstaged files (see note).
     const untrackedChanges = activeRepo.state.untrackedChanges ?? [];
     const isChangedFile =
@@ -728,13 +738,21 @@ const stageCurrentFileAndGoToNextUnstaged = async () => {
     const workingTreeChanges = getUnstagedUris(activeRepo, !!isTreeView);
 
     const currentIndex = workingTreeChanges.findIndex(pathMatches);
-    // Where to land after staging. Current file is in the unstaged list -> the one AFTER it; but if it's the
-    // LAST unstaged file (no "next"), fall back to the PREVIOUS unstaged file so we don't leave you on
-    // nothing. The ?? handles the last-file case; for the only-file case currentIndex-1 is -1 which returns
-    // undefined (-> close below). Not in the list (e.g. we were on an already-staged file) -> first unstaged.
-    const targetUnstagedFile = currentIndex === -1
-        ? workingTreeChanges[0]
-        : (workingTreeChanges[currentIndex + 1] ?? workingTreeChanges[currentIndex - 1]);
+    // Where to land after staging, by direction:
+    //   "next"     -> the file AFTER the current one (top-to-bottom review); if it was the LAST, fall back to
+    //                 the PREVIOUS one so we don't strand you. Not in the list -> the FIRST unstaged file.
+    //   "previous" -> the file BEFORE the current one (bottom-to-top review); if it was the FIRST, fall back
+    //                 to the NEXT one. Not in the list -> the LAST unstaged file.
+    // The ?? handles the boundary; for the only-file case the fallback index is out of range and returns
+    // undefined (-> close the editor below, nothing left to review).
+    let targetUnstagedFile: vscode.Uri | undefined;
+    if (currentIndex === -1) {
+        targetUnstagedFile = direction === "next" ? workingTreeChanges[0] : workingTreeChanges[workingTreeChanges.length - 1];
+    } else if (direction === "next") {
+        targetUnstagedFile = workingTreeChanges[currentIndex + 1] ?? workingTreeChanges[currentIndex - 1];
+    } else {
+        targetUnstagedFile = workingTreeChanges[currentIndex - 1] ?? workingTreeChanges[currentIndex + 1];
+    }
 
     // Stage the whole current file — equivalent to clicking the + next to it in the Source Control view.
     await activeRepo.add([currentUri.fsPath]);

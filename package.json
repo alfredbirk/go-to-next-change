@@ -58,6 +58,10 @@
             {
                 "command": "go-to-next-change.stage-and-go-to-next-changed-file",
                 "title": "Stage current file and go to next unstaged change"
+            },
+            {
+                "command": "go-to-next-change.stage-and-go-to-previous-changed-file",
+                "title": "Stage current file and go to previous unstaged change"
             }
         ],
         "configuration": {
@@ -120,6 +124,11 @@
                 "command": "go-to-next-change.stage-and-go-to-next-changed-file",
                 "key": "shift+alt+z",
                 "mac": "shift+alt+z"
+            },
+            {
+                "command": "go-to-next-change.stage-and-go-to-previous-changed-file",
+                "key": "shift+alt+a",
+                "mac": "shift+alt+a"
             }
         ]
     },

@@ -38,6 +38,7 @@ Stages the whole current file — exactly like clicking the `+` next to it in th
 -   It only acts on **actual changes** (a safety guard stops an accidental `git add` + editor-close while you're editing an unrelated clean file).
 -   It **does nothing when you're viewing an already-staged file's diff** — this command is for working through *unstaged* files, so it won't yank you off to an unrelated one.
 -   If you stage the **last** unstaged file, it lands on the **previous** unstaged file instead of closing. It only closes the editor when that was the *only* unstaged file left — i.e. nothing more to review.
+-   **Reviewing bottom-to-top?** `shift+alt+a` (shift + *previous*) is the reverse mirror: it stages the current file and advances to the **previous** unstaged file instead of the next.
 
 > ### 🍴 This is a fork
 >
