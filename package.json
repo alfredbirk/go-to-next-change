@@ -62,8 +62,22 @@
             {
                 "command": "go-to-next-change.stage-and-go-to-previous-changed-file",
                 "title": "Stage current file and go to previous unstaged change"
+            },
+            {
+                "command": "go-to-next-change.stage-current-file",
+                "title": "Stage current file",
+                "icon": "$(add)"
             }
         ],
+        "menus": {
+            "editor/title": [
+                {
+                    "command": "go-to-next-change.stage-current-file",
+                    "group": "navigation",
+                    "when": "gitOpenRepositoryCount != 0"
+                }
+            ]
+        },
         "configuration": {
             "title": "Go to next change",
             "properties": {

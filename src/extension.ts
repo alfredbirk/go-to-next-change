@@ -34,6 +34,12 @@ export function activate(context: vscode.ExtensionContext) {
         await stageCurrentFileAndAdvance("previous");
     });
 
+    // Editor-title button (top-right of the editor, next to the built-in diff/open icons): stage the current
+    // file WITHOUT navigating. Contributed to the editor/title menu in package.json so it renders as an icon.
+    let disposable8 = vscode.commands.registerCommand("go-to-next-change.stage-current-file", async () => {
+        await stageCurrentFile();
+    });
+
     // OVERLAY (supported API, no patching): badge the file currently open as a diff with a "▶" marker via a
     // FileDecorationProvider. The badge renders on the row in the built-in Source Control panel (and the
     // Explorer/tabs), giving a "you are here" indicator on the real Git rows. Caveat: decorations key on the
@@ -85,7 +91,7 @@ export function activate(context: vscode.ExtensionContext) {
     };
 
     context.subscriptions.push(
-        disposable, disposable2, disposable3, disposable4, disposable5, disposable6, disposable7,
+        disposable, disposable2, disposable3, disposable4, disposable5, disposable6, disposable7, disposable8,
         reviewDecoEmitter,
         vscode.window.registerFileDecorationProvider(reviewDecorationProvider),
         vscode.window.tabGroups.onDidChangeTabs(() => refreshReviewDecoration()),
@@ -764,6 +770,22 @@ const goToLastOrPreviousFile = async () => {
 
 // FEATURE (shift+alt+z): stage the whole current file, then jump straight to the next UNSTAGED file so
 // you can review-and-stage without reaching for the mouse to click the + each time.
+// Stages the current file and stays put (no navigation) — backs the editor-title "Stage current file" button.
+// Reuses getActiveFileUri (tab-aware, so it works from a diff or a plain editor) and isChangeFileUri as the
+// safety guard, so it only ever runs `git add` on an actual change — never on a clean/unrelated file.
+const stageCurrentFile = async () => {
+    const currentUri = await getActiveFileUri();
+    if (!currentUri || !isChangeFileUri(currentUri)) {
+        return; // no active file, or it's not a change -> nothing to stage
+    }
+    const gitExtension = vscode.extensions.getExtension<any>("vscode.git")!.exports;
+    const git = gitExtension.getAPI(1);
+    const activeRepo = git.getRepository(currentUri) || git.repositories[0];
+    if (activeRepo) {
+        await activeRepo.add([currentUri.fsPath]); // same as clicking the + next to the file in Source Control
+    }
+};
+
 // Stages the current file, then opens the adjacent unstaged file in `direction`. Shared by both
 // stage-and-advance commands: "next" advances down the list (top-to-bottom review, shift + next), "previous"
 // moves up (bottom-to-top review, shift + previous). Only the landing-target differs; everything else (the
