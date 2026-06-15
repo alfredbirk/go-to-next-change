@@ -275,12 +275,30 @@ const orderFilesForTreeView = (a: any, b: any) => {
     return 0;
 };
 
+// VS Code git API Status enum (extensions/git/src/api/git.d.ts). We only need the staged-side members to
+// pick the correct diff sides for a staged entry (see openChangeEntry). Kept as a plain const map (the git
+// API isn't typed in this project) so the values are documented at the call site instead of being magic
+// numbers. A newly-staged file is INDEX_ADDED (no HEAD blob); a staged deletion is INDEX_DELETED (no index
+// blob) — those two are exactly the cases that used to throw "editor could not be opened / file not found".
+const GitStatus = {
+    INDEX_MODIFIED: 0,
+    INDEX_ADDED: 1,
+    INDEX_DELETED: 2,
+    INDEX_RENAMED: 3,
+    INDEX_COPIED: 4,
+} as const;
+
 // One navigable entry in the changes list. `staged` distinguishes the index (Staged Changes) copy from
 // the working-tree (Changes) copy of the same file. They are SEPARATE diffs, and a partially-staged file
 // legitimately appears as BOTH — exactly like the Source Control view shows it.
+// `status` is the raw git status (vscode.git Status enum value) of the underlying change. For an UNSTAGED
+// entry it's undefined (git.openChange handles those). For a STAGED entry it tells openChangeEntry which
+// sides of the HEAD↔index diff actually have content, so we don't hand vscode.diff a git: URI for a blob
+// that doesn't exist (the "file not found" bug — staged-add has no HEAD side, staged-delete has no index side).
 interface FileChange {
     uri: vscode.Uri;
     staged: boolean;
+    status?: number;
 }
 
 // Unstaged file uris for a repo = tracked working-tree changes PLUS untracked (new) files, deduped by path
@@ -311,11 +329,15 @@ const getFileChanges = async (): Promise<FileChange[]> => {
     const activeRepo = git.getRepository(workspaceUri?.path) || git.repositories[0];
     const isTreeView = vscode.workspace.getConfiguration("go-to-next-change").get("treeView");
 
+    // Keep the git status alongside the uri for staged entries: openChangeEntry needs it to choose which
+    // diff sides exist (a newly-staged INDEX_ADDED file has no HEAD blob; a staged INDEX_DELETED file has no
+    // index blob). We sort on the URI just like before, but carry {uri,status} through the sort so the
+    // status isn't lost. (Sorting plain uris and re-deriving status later would be fragile across dup paths.)
     const indexChanges: FileChange[] = activeRepo.state.indexChanges
         .filter((file: any) => file.status !== 7)
-        .map((file: any) => file.uri)
-        .sort(isTreeView ? orderFilesForTreeView : orderFilesForListView)
-        .map((uri: vscode.Uri) => ({ uri, staged: true }));
+        .map((file: any) => ({ uri: file.uri as vscode.Uri, status: file.status as number }))
+        .sort((a: any, b: any) => (isTreeView ? orderFilesForTreeView : orderFilesForListView)(a.uri, b.uri))
+        .map((entry: any) => ({ uri: entry.uri, staged: true, status: entry.status }));
 
     // Unstaged group = tracked working-tree changes PLUS untracked (new) files (see getUnstagedUris), tagged
     // unstaged. Untracked files used to be filtered out here, so they were skipped by navigation entirely.
@@ -396,6 +418,32 @@ const toGitUri = (uri: vscode.Uri, ref: string): vscode.Uri => {
     return uri.with({ scheme: "git", path: uri.path, query: JSON.stringify({ path: uri.fsPath, ref }) });
 };
 
+// The git "empty tree" object id — `git show <empty-tree>:<path>` resolves to an empty buffer instead of
+// erroring, which is exactly how VS Code's git: content provider serves a "this side has no content" placeholder
+// (its readFile special-cases `ref === getEmptyTree()` -> 0 bytes). We use it as the empty side when opening
+// the staged diff of a newly-ADDED file (no HEAD blob) or a staged-DELETED file (no index blob), so vscode.diff
+// gets a resolvable URI on both sides and doesn't throw "file not found".
+// 4b825dc...4904 is the canonical SHA-1 empty-tree id; b2d... is the SHA-256 equivalent for sha256-object repos.
+// We pick by inspecting an existing ref's length isn't reliable here, so we try to ask git via the extension's
+// repository object first, and fall back to the SHA-1 constant (the overwhelmingly common case).
+const EMPTY_TREE_SHA1 = "4b825dc642cb6eb9a060e54bf8d69288fbee4904";
+const EMPTY_TREE_SHA256 = "6ef19b41225c5369f1c104d45d8d85efa9b057b53b14b4b9b939dd74decc5321";
+const getEmptyTreeRef = async (uri: vscode.Uri): Promise<string | undefined> => {
+    try {
+        const git = vscode.extensions.getExtension<any>("vscode.git")?.exports?.getAPI(1);
+        const repo = git?.getRepository(uri) ?? git?.repositories?.[0];
+        // The git extension API doesn't surface getEmptyTree(), but we can detect the object format from the
+        // repo's commit hashes when available; default to SHA-1 (covers virtually all real-world repos).
+        const head: string | undefined = repo?.state?.HEAD?.commit;
+        if (head && head.length === 64) {
+            return EMPTY_TREE_SHA256; // sha256 repo
+        }
+        return EMPTY_TREE_SHA1;
+    } catch {
+        return EMPTY_TREE_SHA1; // git extension not ready / API shape changed — SHA-1 empty tree is the safe default
+    }
+};
+
 // Opens the diff for a single list entry on the correct (staged vs unstaged) side.
 const openChangeEntry = async (entry: FileChange): Promise<void> => {
     if (!entry.staged) {
@@ -429,12 +477,42 @@ const openChangeEntry = async (entry: FileChange): Promise<void> => {
 
     // Staged (index) diff: open HEAD-vs-index explicitly so it works even for a partially-staged file
     // (where git.openChange would otherwise show the working-tree diff). preview:true mirrors single-click
-    // SCM behavior so the existing preview-tab handling keeps working. A newly-added file has no HEAD blob;
-    // the git content provider returns empty for that side, so the diff shows it as fully added — same as
-    // the Source Control view. The git-scheme modified side also makes getActiveChange detect this as
-    // staged, so subsequent next/previous navigation stays anchored to the correct list entry.
-    const left = toGitUri(entry.uri, "HEAD");
-    const right = toGitUri(entry.uri, "");
+    // SCM behavior so the existing preview-tab handling keeps working. The git-scheme modified side also
+    // makes getActiveChange detect this as staged, so subsequent next/previous navigation stays anchored to
+    // the correct list entry.
+    //
+    // BUG FIX ("The editor could not be opened because the file was not found" on staged files):
+    // The git: scheme content provider serves a side by running `git show <ref>:<path>` (verified in VS
+    // Code's GitFileSystemProvider.readFile -> Repository.buffer). If the requested ref has no blob for that
+    // path, git errors and the provider throws FileSystemError.FileNotFound — which surfaces as that exact
+    // editor error. The old code ALWAYS built left=toGitUri(HEAD) + right=toGitUri("") regardless of git
+    // status, so the two staged statuses where one side legitimately has NO blob blew up:
+    //   • INDEX_ADDED  (a brand-new file you just `git add`-ed): no HEAD blob -> `git show HEAD:path` fails.
+    //   • INDEX_DELETED (a tracked file you staged for deletion):  no index blob -> `git show :path` fails.
+    // VS Code itself never hits this: its getLeftResource has NO case for INDEX_ADDED (returns {} -> empty
+    // left), and INDEX_DELETED opens with an empty right. We mirror that here by status:
+    //   • INDEX_ADDED   -> left = empty-tree git: uri (provider returns 0 bytes), right = index  => shown as fully added.
+    //   • INDEX_DELETED -> left = HEAD,                                            right = empty-tree    => shown as fully removed.
+    //   • everything else (INDEX_MODIFIED / RENAMED / COPIED / unknown) -> HEAD ↔ index, as before.
+    // The empty-tree object id is the one ref the content provider maps to an empty buffer instead of
+    // throwing (see readFile's `if (r === await getEmptyTree()) return new Uint8Array(0)`), so it's the
+    // correct, guaranteed-resolvable "this side has no content" placeholder — not a made-up ref.
+    const emptyTreeRef = await getEmptyTreeRef(entry.uri);
+    let left: vscode.Uri;
+    let right: vscode.Uri;
+    if (entry.status === GitStatus.INDEX_ADDED) {
+        // Newly-staged file: nothing at HEAD. Use the empty tree as the (empty) original side.
+        left = emptyTreeRef ? toGitUri(entry.uri, emptyTreeRef) : toGitUri(entry.uri, "HEAD");
+        right = toGitUri(entry.uri, ""); // "" ref => the index/staged content (git show :path)
+    } else if (entry.status === GitStatus.INDEX_DELETED) {
+        // Staged deletion: nothing in the index. Diff HEAD content against the empty tree (fully removed).
+        left = toGitUri(entry.uri, "HEAD");
+        right = emptyTreeRef ? toGitUri(entry.uri, emptyTreeRef) : toGitUri(entry.uri, "");
+    } else {
+        // INDEX_MODIFIED / INDEX_RENAMED / INDEX_COPIED (and any unknown staged status): both sides exist.
+        left = toGitUri(entry.uri, "HEAD");
+        right = toGitUri(entry.uri, ""); // index content
+    }
     const title = `${entry.uri.path.split("/").pop()} (Index)`;
     await vscode.commands.executeCommand("vscode.diff", left, right, title, { preview: true });
 };

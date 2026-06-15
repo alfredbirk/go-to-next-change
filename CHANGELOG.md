@@ -8,6 +8,10 @@
 
 - Close file after last change
 
+## [0.8.1] (ethansk fork)
+
+- Fix: "The editor could not be opened because the file was not found" when navigating (go to next / previous change or changed file) onto a **staged** file that was newly added or staged for deletion. The staged diff was always built as HEAD ↔ index regardless of git status, so the side that legitimately has no content — HEAD for a brand-new staged file, the index for a staged deletion — pointed `git show` at a blob that doesn't exist, and VS Code's git content provider threw "file not found". The staged diff now picks its sides by git status (newly-added → empty original; staged deletion → empty modified; modified/renamed/copied → HEAD ↔ index as before), using git's empty-tree object as the guaranteed-resolvable empty side, exactly as VS Code's own Source Control does.
+
 ## [0.8.0] (ethansk fork)
 
 - Fix: "go to next change" jumping to the wrong file (or getting stuck) when a file was partially staged / staged-then-edited — such a file appears twice (staged + unstaged) and the position lookup matched by path only, locking onto the wrong copy. Navigation entries are now tagged with their staged/unstaged side, the current side is detected from the active diff, and the matching side is opened.
