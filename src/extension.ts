@@ -153,6 +153,13 @@ const currentReviewFileUri = (): vscode.Uri | undefined => {
         // instead of special-casing each git status. (Bug: the badge didn't follow deleted files.)
         return toFilePathUri(input.modified) ?? toFilePathUri(input.original);
     }
+    // A 3-way MERGE editor (git conflict). TabInputTextMerge exists at runtime but isn't in this project's
+    // @types/vscode (1.83), so duck-type it by shape (base/input1/input2/result); `result` is the on-disk
+    // file being merged. The TabInputTextDiff check above already ran, so this shape is unambiguously a merge.
+    const mergeInput = input as any;
+    if (mergeInput && mergeInput.result && mergeInput.input1 && mergeInput.input2) {
+        return toFilePathUri(mergeInput.result);
+    }
     // A single editor (not a diff) — git opens some changes this way via `vscode.open`:
     //   • untracked/new files  -> the plain file: uri (no original to diff against)
     //   • DELETED files        -> the HEAD content under a git: uri (no working file to diff against)
@@ -286,12 +293,30 @@ const orderFilesForTreeView = (a: any, b: any) => {
 // API isn't typed in this project) so the values are documented at the call site instead of being magic
 // numbers. A newly-staged file is INDEX_ADDED (no HEAD blob); a staged deletion is INDEX_DELETED (no index
 // blob) — those two are exactly the cases that used to throw "editor could not be opened / file not found".
+// Every state a file can be in (vscode.git Status enum, extensions/git/src/api/git.d.ts). Listed in full so
+// each is accounted for. Index/working-tree states are navigated + diffed; merge-conflict states (12-18) are
+// navigated too (opened via git.openChange, which brings up the conflict / 3-way merge editor); IGNORED is
+// the only one we skip (it's not a change to review).
 const GitStatus = {
-    INDEX_MODIFIED: 0,
-    INDEX_ADDED: 1,
-    INDEX_DELETED: 2,
-    INDEX_RENAMED: 3,
-    INDEX_COPIED: 4,
+    INDEX_MODIFIED: 0,   // staged edit
+    INDEX_ADDED: 1,      // staged new file (no HEAD side)
+    INDEX_DELETED: 2,    // staged deletion (no index side)
+    INDEX_RENAMED: 3,    // staged rename (HEAD side is at the ORIGINAL path)
+    INDEX_COPIED: 4,     // staged copy   (HEAD side is at the ORIGINAL path)
+    MODIFIED: 5,         // unstaged edit
+    DELETED: 6,          // unstaged deletion
+    UNTRACKED: 7,        // brand-new file, not yet added
+    IGNORED: 8,          // gitignored — skipped
+    INTENT_TO_ADD: 9,    // `git add -N` — treated like a new file (no HEAD side)
+    INTENT_TO_RENAME: 10,
+    TYPE_CHANGED: 11,    // e.g. file <-> symlink
+    ADDED_BY_US: 12,     // ── merge conflicts ──
+    ADDED_BY_THEM: 13,
+    DELETED_BY_US: 14,
+    DELETED_BY_THEM: 15,
+    BOTH_ADDED: 16,
+    BOTH_DELETED: 17,
+    BOTH_MODIFIED: 18,
 } as const;
 
 // One navigable entry in the changes list. `staged` distinguishes the index (Staged Changes) copy from
@@ -305,6 +330,7 @@ interface FileChange {
     uri: vscode.Uri;
     staged: boolean;
     status?: number;
+    originalUri?: vscode.Uri; // staged RENAME/COPY: the HEAD-side blob lives at this old path, not `uri`
 }
 
 // Unstaged file uris for a repo = tracked working-tree changes PLUS untracked (new) files, deduped by path
@@ -341,13 +367,22 @@ const getFileChanges = async (): Promise<FileChange[]> => {
     // status isn't lost. (Sorting plain uris and re-deriving status later would be fragile across dup paths.)
     const indexChanges: FileChange[] = activeRepo.state.indexChanges
         .filter((file: any) => file.status !== 7)
-        .map((file: any) => ({ uri: file.uri as vscode.Uri, status: file.status as number }))
+        .map((file: any) => ({ uri: file.uri as vscode.Uri, status: file.status as number, originalUri: file.originalUri as vscode.Uri | undefined }))
         .sort((a: any, b: any) => (isTreeView ? orderFilesForTreeView : orderFilesForListView)(a.uri, b.uri))
-        .map((entry: any) => ({ uri: entry.uri, staged: true, status: entry.status }));
+        .map((entry: any) => ({ uri: entry.uri, staged: true, status: entry.status, originalUri: entry.originalUri }));
 
     // Unstaged group = tracked working-tree changes PLUS untracked (new) files (see getUnstagedUris), tagged
     // unstaged. Untracked files used to be filtered out here, so they were skipped by navigation entirely.
     const workingTreeChanges: FileChange[] = getUnstagedUris(activeRepo, !!isTreeView).map((uri) => ({ uri, staged: false }));
+
+    // Merge-conflict files (state.mergeChanges) — "both modified", "added by us/them", etc. VS Code lists
+    // these in a "Merge Changes" group ABOVE staged/unstaged. Included so conflicts are navigable too; they're
+    // opened via git.openChange (the staged:false path), which brings up the conflict / 3-way merge editor.
+    // Empty array when there's no merge in progress, so this is a no-op in the normal case.
+    const mergeChanges: FileChange[] = (activeRepo.state.mergeChanges ?? [])
+        .map((file: any) => file.uri as vscode.Uri)
+        .sort(isTreeView ? orderFilesForTreeView : orderFilesForListView)
+        .map((uri: vscode.Uri) => ({ uri, staged: false }));
 
     // BUG FIX: a file that is partially staged (or staged and then edited again) appears in BOTH
     // indexChanges and workingTreeChanges with the SAME on-disk path — so it shows twice here, just as it
@@ -360,7 +395,7 @@ const getFileChanges = async (): Promise<FileChange[]> => {
     // matching side in openChangeEntry. Order mirrors the SCM view exactly: Staged group, then Changes
     // group. Repro before fix: stage file A, edit A again, then from a staged file above A press the
     // next-change shortcut past A's last diff — it jumped to A's unstaged copy instead of advancing.
-    return [...indexChanges, ...workingTreeChanges];
+    return [...mergeChanges, ...indexChanges, ...workingTreeChanges];
 };
 
 // Describes which diff is currently focused: the file path, and whether it is the staged (index) side.
@@ -379,6 +414,12 @@ const getActiveChange = async (): Promise<ActiveChange | null> => {
     const input = vscode.window.tabGroups.activeTabGroup.activeTab?.input;
     if (input instanceof vscode.TabInputTextDiff) {
         return { path: input.modified.path, staged: input.modified.scheme === "git" };
+    }
+    // 3-way merge editor (conflict). Duck-typed (TabInputTextMerge isn't in @types/vscode 1.83); `result` is
+    // the working-tree file. Treat as the unstaged side for matching.
+    const mergeInput = input as any;
+    if (mergeInput && mergeInput.result && mergeInput.input1 && mergeInput.input2) {
+        return { path: mergeInput.result.path as string, staged: false };
     }
 
     // Fallback for plain editors / non-textual files: path only, side unknown.
@@ -506,8 +547,8 @@ const openChangeEntry = async (entry: FileChange): Promise<void> => {
     const emptyTreeRef = await getEmptyTreeRef(entry.uri);
     let left: vscode.Uri;
     let right: vscode.Uri;
-    if (entry.status === GitStatus.INDEX_ADDED) {
-        // Newly-staged file: nothing at HEAD. Use the empty tree as the (empty) original side.
+    if (entry.status === GitStatus.INDEX_ADDED || entry.status === GitStatus.INTENT_TO_ADD) {
+        // Newly-staged / intent-to-add file: nothing at HEAD. Use the empty tree as the (empty) original side.
         left = emptyTreeRef ? toGitUri(entry.uri, emptyTreeRef) : toGitUri(entry.uri, "HEAD");
         right = toGitUri(entry.uri, ""); // "" ref => the index/staged content (git show :path)
     } else if (entry.status === GitStatus.INDEX_DELETED) {
@@ -515,9 +556,13 @@ const openChangeEntry = async (entry: FileChange): Promise<void> => {
         left = toGitUri(entry.uri, "HEAD");
         right = emptyTreeRef ? toGitUri(entry.uri, emptyTreeRef) : toGitUri(entry.uri, "");
     } else {
-        // INDEX_MODIFIED / INDEX_RENAMED / INDEX_COPIED (and any unknown staged status): both sides exist.
-        left = toGitUri(entry.uri, "HEAD");
-        right = toGitUri(entry.uri, ""); // index content
+        // INDEX_MODIFIED / INDEX_RENAMED / INDEX_COPIED / TYPE_CHANGED (and any unknown staged status): both
+        // sides exist. CRITICAL for RENAME/COPY (the "R doesn't work" bug): the HEAD blob lives at the
+        // ORIGINAL path, NOT entry.uri (the new path) — so `git show HEAD:<newpath>` errors with "file not
+        // found" and the diff never opens. entry.originalUri is the old path (and equals uri for non-renames),
+        // so it's the correct HEAD side for every case.
+        left = toGitUri(entry.originalUri ?? entry.uri, "HEAD");
+        right = toGitUri(entry.uri, ""); // index content at the (new) path
     }
     const title = `${entry.uri.path.split("/").pop()} (Index)`;
     await vscode.commands.executeCommand("vscode.diff", left, right, title, { preview: true });

@@ -11,6 +11,8 @@
 ## [0.8.1] (ethansk fork)
 
 - Fix: "The editor could not be opened because the file was not found" when navigating (go to next / previous change or changed file) onto a **staged** file that was newly added or staged for deletion. The staged diff was always built as HEAD ↔ index regardless of git status, so the side that legitimately has no content — HEAD for a brand-new staged file, the index for a staged deletion — pointed `git show` at a blob that doesn't exist, and VS Code's git content provider threw "file not found". The staged diff now picks its sides by git status (newly-added → empty original; staged deletion → empty modified; modified/renamed/copied → HEAD ↔ index as before), using git's empty-tree object as the guaranteed-resolvable empty side, exactly as VS Code's own Source Control does.
+- Fix: staged **renames and copies** (the "R" rows) now open — same "file not found" class of bug. The HEAD side was built at the *new* path, but a rename's HEAD content lives at the *old* path, so `git show HEAD:<newpath>` failed and the diff never opened. It now uses the change's `originalUri` for the HEAD side (correct for rename/copy, identical for everything else).
+- Generalised across **all** git states so they're navigable + diffable + badge-able: intent-to-add (treated like a new file), type-changed, and **merge-conflict** files (now included in navigation, opened via the conflict / 3-way merge editor, with the "currently reviewing" badge following them). The `GitStatus` table now documents every state. IGNORED is the only state intentionally skipped.
 
 ## [0.8.0] (ethansk fork)
 
