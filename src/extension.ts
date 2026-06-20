@@ -40,6 +40,41 @@ export function activate(context: vscode.ExtensionContext) {
         await stageCurrentFile();
     });
 
+    // ──────────────────────────────────────────────────────────────────────────────────────────
+    // SMART MOUSE-BUTTON COMMANDS (smart-forward / smart-back)
+    //
+    // These are bound to Ethan's mouse Forward/Back buttons (via Karabiner -> F13/F17 -> these
+    // commands). They give ONE pair of keys a dual meaning that depends on what's on screen:
+    //   - When a side-by-side DIFF editor is the active tab  -> next/previous SCM change (review flow)
+    //   - Anywhere else                                      -> classic editor back/forward navigation
+    //
+    // WHY we detect the diff via the TAB INPUT TYPE here, NOT via the `isInDiffEditor` keybinding context:
+    //   The previous approach gated the mouse keys in keybindings.json with `when: isInDiffEditor` /
+    //   `when: !isInDiffEditor`. That CONTEXT key is only true when the diff editor is the *focused/active*
+    //   editor. In Ethan's review flow, keyboard focus is frequently in the Source Control panel (he's
+    //   clicking files there) while the diff is merely VISIBLE in the editor area — so `isInDiffEditor`
+    //   reads FALSE and the mouse button wrongly fell back to plain back/forward navigation mid-review.
+    //   `vscode.window.tabGroups.activeTabGroup.activeTab` is FOCUS-INDEPENDENT: it tells us what tab is
+    //   open in the active group regardless of whether focus is in the editor, the SCM panel, the terminal,
+    //   etc. `tab.input instanceof vscode.TabInputTextDiff` is the canonical, stable way to ask "is the
+    //   active tab a side-by-side text diff?" — exactly the situation where the mouse buttons should mean
+    //   "next/previous change". We bake the decision into the extension so the keybindings can be
+    //   UNCONDITIONAL (no flaky `when` clause).
+    //
+    // We REUSE the existing scm-change commands via executeCommand so there's a single source of truth for
+    // the navigation logic (no duplication of goToNextDiff/goToPreviousDiff).
+    //
+    // Robustness: everything is wrapped in try/catch. TabInputTextDiff has been a stable VS Code API for
+    // years (since ~1.67), but if it's ever unavailable (very old host) the `instanceof` check simply
+    // evaluates false and we fall back to plain navigation — a safe default. Any unexpected throw also
+    // falls back to plain navigation so a mouse click never becomes a no-op.
+    let disposable9 = vscode.commands.registerCommand("go-to-next-change.smart-forward", async () => {
+        await smartNavigate("forward");
+    });
+    let disposable10 = vscode.commands.registerCommand("go-to-next-change.smart-back", async () => {
+        await smartNavigate("back");
+    });
+
     // OVERLAY (supported API, no patching): badge the file currently open as a diff with a "▶" marker via a
     // FileDecorationProvider. The badge renders on the row in the built-in Source Control panel (and the
     // Explorer/tabs), giving a "you are here" indicator on the real Git rows. Caveat: decorations key on the
@@ -92,6 +127,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         disposable, disposable2, disposable3, disposable4, disposable5, disposable6, disposable7, disposable8,
+        disposable9, disposable10,
         reviewDecoEmitter,
         vscode.window.registerFileDecorationProvider(reviewDecorationProvider),
         vscode.window.tabGroups.onDidChangeTabs(() => refreshReviewDecoration()),
@@ -984,5 +1020,41 @@ const getActiveFileUri = async (): Promise<vscode.Uri | null> => {
     const path = await getActiveFilePath();
     return path ? vscode.Uri.file(path) : null;
 };
+
+// Shared implementation for the smart mouse buttons. See the big comment at the smart-forward /
+// smart-back command registrations for the full rationale on why we detect the diff via the active
+// tab's input type (TabInputTextDiff) rather than the `isInDiffEditor` keybinding context.
+//
+// direction === "forward":  diff -> next SCM change   | otherwise -> workbench.action.navigateForward
+// direction === "back":     diff -> previous SCM change | otherwise -> workbench.action.navigateBack
+async function smartNavigate(direction: "forward" | "back") {
+    let inDiff = false;
+    try {
+        // FOCUS-INDEPENDENT diff detection: read the active tab of the active group, not the focused editor.
+        // This is what makes the mouse buttons "just work" even when focus is in the SCM panel during review.
+        const tab = vscode.window.tabGroups.activeTabGroup?.activeTab;
+        // TabInputTextDiff is the input type VS Code uses for any side-by-side text diff tab (which is exactly
+        // what `vscode.diff` opens). instanceof is safe even if `input` is undefined or some other type.
+        inDiff = tab?.input instanceof vscode.TabInputTextDiff;
+    } catch {
+        // Defensive fallback: on a very old host where TabInputTextDiff doesn't exist the line above could
+        // throw. Fall back to the legacy heuristic — treat it as a diff only if there's no plain active text
+        // editor (a side-by-side diff has no single activeTextEditor in the classic sense). Worst case we
+        // mis-route to plain navigation, which is the harmless default. TabInputTextDiff has been stable for
+        // years so this branch should never actually run.
+        inDiff = !vscode.window.activeTextEditor;
+    }
+
+    if (direction === "forward") {
+        // Reuse the existing scm-change command so navigation logic lives in one place (goToNextDiff).
+        await vscode.commands.executeCommand(
+            inDiff ? "go-to-next-change.go-to-next-scm-change" : "workbench.action.navigateForward"
+        );
+    } else {
+        await vscode.commands.executeCommand(
+            inDiff ? "go-to-next-change.go-to-previous-scm-change" : "workbench.action.navigateBack"
+        );
+    }
+}
 
 export function deactivate() {}

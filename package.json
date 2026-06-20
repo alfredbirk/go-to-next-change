@@ -2,7 +2,7 @@
     "name": "go-to-next-change",
     "displayName": "Go to next change",
     "description": "Cycle through diffs in changed files. When at the end of a file, it will automatically jump to the next file.",
-    "version": "0.8.1",
+    "version": "0.8.2",
     "icon": "src/logo.png",
     "engines": {
         "vscode": "^1.83.0"
@@ -67,6 +67,14 @@
                 "command": "go-to-next-change.stage-current-file",
                 "title": "Stage current file",
                 "icon": "$(add)"
+            },
+            {
+                "command": "go-to-next-change.smart-forward",
+                "title": "Smart forward (next change in a diff, else navigate forward)"
+            },
+            {
+                "command": "go-to-next-change.smart-back",
+                "title": "Smart back (previous change in a diff, else navigate back)"
             }
         ],
         "menus": {
