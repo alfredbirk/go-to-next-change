@@ -1025,8 +1025,8 @@ const getActiveFileUri = async (): Promise<vscode.Uri | null> => {
 // smart-back command registrations for the full rationale on why we detect the diff via the active
 // tab's input type (TabInputTextDiff) rather than the `isInDiffEditor` keybinding context.
 //
-// direction === "forward":  diff -> next SCM change   | otherwise -> workbench.action.navigateForward
-// direction === "back":     diff -> previous SCM change | otherwise -> workbench.action.navigateBack
+// direction === "forward":  diff -> PREVIOUS SCM change (intentionally flipped) | otherwise -> navigateForward
+// direction === "back":     diff -> NEXT SCM change (intentionally flipped)     | otherwise -> navigateBack
 async function smartNavigate(direction: "forward" | "back") {
     let inDiff = false;
     try {
@@ -1045,14 +1045,17 @@ async function smartNavigate(direction: "forward" | "back") {
         inDiff = !vscode.window.activeTextEditor;
     }
 
+    // NOTE: the DIFF branch is INTENTIONALLY flipped relative to the navigation branch (Ethan's preference,
+    // 2026-06-20: "the diff one should be flipped, I know it's weird"). So the FORWARD button goes to the
+    // PREVIOUS change while reviewing a diff, and the BACK button goes to the NEXT change. Outside a diff the
+    // buttons keep their normal meaning (forward = navigateForward, back = navigateBack). Do not "correct" this.
     if (direction === "forward") {
-        // Reuse the existing scm-change command so navigation logic lives in one place (goToNextDiff).
         await vscode.commands.executeCommand(
-            inDiff ? "go-to-next-change.go-to-next-scm-change" : "workbench.action.navigateForward"
+            inDiff ? "go-to-next-change.go-to-previous-scm-change" : "workbench.action.navigateForward"
         );
     } else {
         await vscode.commands.executeCommand(
-            inDiff ? "go-to-next-change.go-to-previous-scm-change" : "workbench.action.navigateBack"
+            inDiff ? "go-to-next-change.go-to-next-scm-change" : "workbench.action.navigateBack"
         );
     }
 }
