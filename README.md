@@ -1,147 +1,123 @@
-<h1 align="center">
-  <br>
-  <a href="https://marketplace.visualstudio.com/items?itemName=alfredbirk.go-to-next-change">
-    <img src="https://github.com/alfredbirk/go-to-next-change/raw/main/src/logo.png" alt="logo" width="120" />
-  </a>
-  <br>
-  <br>
-  Go to next change
-  <br>
-</h1>
+<p align="center">
+  <img src="src/icon.png" width="120" alt="Better Git VS Code icon" />
+</p>
 
-<h3 align="center" style="font-size: 14px">Review an entire changeset file by file — from the keyboard. Cycle through every diff with <code>alt+z</code>, and the moment you're happy with a file, press <code>shift+alt+z</code> to stage it and jump straight to the next unstaged one.</h3>
+<h1 align="center">Better Git VS Code</h1>
 
 <p align="center">
-  <a href="https://marketplace.visualstudio.com/items?itemName=alfredbirk.go-to-next-change">
-      <img src="https://img.shields.io/visual-studio-marketplace/v/alfredbirk.go-to-next-change?color=brightgreen&label=VS%20Marketplace" />
-  </a>
+  <b>Fast, keyboard-driven git diff review.</b> Jump between changes and changed files,
+  stage-and-advance, and revert — all without touching the mouse.
 </p>
-<br>
-
-![Final4](https://github.com/alfredbirk/go-to-next-change/assets/11172530/456b380f-e555-404c-9e7d-39b9f3b127ff)
-
-## Why this fork — built for reviewing AI-generated changes
-
-AI / agentic coding produces **large diffs across many files**, and the bottleneck shifts from *writing* code to **reviewing** it. This fork turns that review into a fast keyboard loop:
-
--   **`alt+z`** cycles through every change, auto-jumping from file to file as you reach the end of each one.
--   **`shift+alt+z`** — the headline of this fork — **stages the current file and advances to the next unstaged file** the moment you're happy with it.
-
-So you blaze through an AI-generated changeset one file at a time, approving as you go — **entirely from the keyboard, no mouse**. `shift+alt+z` solves the whole bottleneck of agentic-engineering code review: read a file, hit `shift+alt+z`, you're staging it *and* on the next file in one keystroke. When the last unstaged file is staged, there's nothing left to review and the diff closes.
-
-It's an honest navigation-and-staging workflow — not a code analyzer. It doesn't judge the code; it makes *you* the fast reviewer by removing every mouse trip between "this file looks good" and "show me the next one".
-
-### How `shift+alt+z` works (the details)
-
-Stages the whole current file — exactly like clicking the `+` next to it in the Source Control view — then opens the next **unstaged** file's diff:
-
--   It only acts on **actual changes** (a safety guard stops an accidental `git add` + editor-close while you're editing an unrelated clean file).
--   It **does nothing when you're viewing an already-staged file's diff** — this command is for working through *unstaged* files, so it won't yank you off to an unrelated one.
--   If you stage the **last** unstaged file, it lands on the **previous** unstaged file instead of closing. It only closes the editor when that was the *only* unstaged file left — i.e. nothing more to review.
--   **Reviewing bottom-to-top?** `shift+alt+a` (shift + *previous*) is the reverse mirror: it stages the current file and advances to the **previous** unstaged file instead of the next.
-
-> ### 🍴 This is a fork
->
-> This is a personal fork of [**alfredbirk/go-to-next-change**](https://github.com/alfredbirk/go-to-next-change) (published under the `ethansk` publisher, installed locally rather than from the Marketplace). It keeps everything the original does and adds the stage-and-advance workflow above, several navigation fixes, and a "currently reviewing" marker. See [**What this fork changes (and why)**](#what-this-fork-changes-and-why) for the full rundown. All credit for the original extension goes to [Alfred Birk](https://github.com/alfredbirk).
-
-## Features
-
--   **(fork)** Stage current file & go to next unstaged file: `shift+alt+z` — the review-and-stage loop above
--   Go to next git change: `alt+z` / `opt+z`
--   Go to previous git change: `alt+a` / `opt+a`
-
-## Other features
-
--   Revert selected changes and save file: `alt+q` / `opt+q`
--   Go to next changed file: `ctrl+alt+z` / `cmd+alt+z`
--   Go to previous changed file: `ctrl+alt+a` / `cmd+alt+a`
--   **(fork)** Reveal current file in Explorer — works from **staged** diffs (command `go-to-next-change.reveal-current-file-in-explorer`; see [section 7](#7-reveal-the-current-file-in-explorer--even-from-a-staged-diff))
-
-## If you use Tree view
-
--   If you use "Tree view" in the source control (as opposed to the default List view), go to settings and check off the setting `Go to next change: Tree view`. That will make the changes cycle in correct order.
 
 ---
 
-## What this fork changes (and why)
+## What it does
 
-Everything below is **additive** — the original keybindings and behaviour are unchanged. Each item explains the problem it solves so you know why it's here.
+Reviewing a diff in VS Code normally means a lot of scrolling and clicking around the
+Source Control panel. **Better Git VS Code** turns that into a tight keyboard loop:
 
-### 1. Correct "next file" order for numbered files
+- **Jump to the next / previous change** in the diff. When you reach the end of a file,
+  it automatically rolls onto the next changed file.
+- **Stage-and-advance** — stage the current file and immediately move to the next
+  unstaged change. Purpose-built for sweeping through a big AI-generated changeset.
+- **Revert** the change at your cursor and save, in one keystroke.
+- **Jump between changed files** directly.
+- **Reveal the current file** in the Explorer, even from inside a staged diff view.
 
-**What:** Navigation now follows the *exact same order* you see in the Source Control panel.
+Everything is driven from the keyboard so you can review a large set of changes
+quickly without breaking flow.
 
-**Why:** The original sorted filenames with a plain `a < b` string comparison, which disagrees with VS Code's own list ordering for numbered names (e.g. it would put `item-10` before `item-2`, or `v10` before `v2`) and for some punctuation. That meant "next" could jump to a file that wasn't the one visually below the current one. This fork uses the same numeric, case-insensitive collator VS Code uses internally (`compareFileNames`), so the cycle order matches the panel exactly — for both staged and unstaged groups.
+## Keybindings
 
-### 2. Correct navigation for partially-staged files
+The headline navigation keys are `Alt+.` and `Alt+,`. On a standard **QWERTY** keyboard
+those are the physical `>` and `<` keys — "next" and "previous" feel obvious because
+the keycaps literally point forward and back.
 
-**What:** "Go to next/previous change" now lands on the right copy of a file that is both staged *and* unstaged.
+All bindings ship as defaults and are fully overridable (see below).
 
-**Why:** A file with both staged changes and further unstaged edits appears **twice** in the panel — once under "Staged Changes" and once under "Changes". The original matched files by path only, so it could lock onto the wrong copy and jump to the wrong file (or appear to get stuck). This fork tags each navigation entry with its **staged/unstaged side**, detects which side you're currently viewing from the active diff, and opens the matching side.
+| Action | macOS | Windows / Linux |
+| --- | --- | --- |
+| **Next change** (smart forward) | `Alt+.` | `Alt+.` |
+| **Previous change** (smart back) | `Alt+,` | `Alt+,` |
+| Next git change (within file) | `Alt+Z` | `Alt+Z` |
+| Previous git change (within file) | `Alt+A` | `Alt+A` |
+| Next changed file | `Cmd+Alt+.` | `Ctrl+Alt+.` |
+| Previous changed file | `Cmd+Alt+,` | `Ctrl+Alt+,` |
+| Stage current file + go to next change | `Shift+Alt+.` | `Shift+Alt+.` |
+| Stage current file + go to previous change | `Shift+Alt+,` | `Shift+Alt+,` |
+| Revert selected change and save | `Alt+Q` | `Alt+Q` |
+| Reveal current file in Explorer | `Alt+R` | `Alt+R` |
 
-### 3. Looping at the ends
+> **Smart forward / back** means: if you're in a diff, move to the next/previous change
+> within it; otherwise navigate forward/back through changed files. It's the one binding
+> you need for most reviews.
 
-**What:** Pressing **next** on the last file now wraps straight to the first file, and **previous** on the first wraps to the last — in a single press.
+`Stage current file` is also available as a `+` button in the editor title bar (no key
+needed).
 
-**Why:** Originally, hitting "next" on the last file just closed the diff editor, so wrapping around took an extra keypress. Now it loops in one press.
+## Dvorak (and other non-QWERTY layouts)
 
-### 4. Stage-and-advance: `shift+alt+z`
+The `Alt+.` / `Alt+,` defaults are chosen for the **QWERTY** `>` / `<` keycaps. On a
+**Dvorak** layout the `,` and `.` characters sit in completely different physical
+positions (top row, where QWERTY has `w` and `e`), so the "points forward / points back"
+intuition is lost and the keys may feel awkward.
 
-**What:** Stages the whole current file (same as clicking the `+` in Source Control) and moves you to the next **unstaged** file, so you can review-and-stage in one flow without the mouse. This is the fork's headline feature — see [**Why this fork**](#why-this-fork--built-for-reviewing-ai-generated-changes) at the top for the full review-loop story and the safety details.
+If you're on Dvorak (or Colemak, AZERTY, etc.), remap the two headline commands to
+whatever feels natural. Open your `keybindings.json`
+(`Cmd/Ctrl+Shift+P` → *Preferences: Open Keyboard Shortcuts (JSON)*) and add:
 
-### 5. A "currently reviewing" badge
+```jsonc
+[
+  // Pick keys that are comfortable on YOUR layout.
+  // Example: keep the same *physical* keys QWERTY uses (Dvorak 'w' / 'e' positions):
+  { "key": "alt+w", "command": "go-to-next-change.smart-back" },
+  { "key": "alt+e", "command": "go-to-next-change.smart-forward" }
 
-**What:** As you navigate, the file you're currently viewing gets a badge (a colourful emoji, default `🔴`) on its row in the built-in Source Control panel — and in the Explorer / editor tabs. It follows you from file to file.
-
-**Why:** When jumping through diffs it wasn't obvious which file in the panel you were actually on. The badge is drawn with VS Code's supported `FileDecorationProvider` API — **no patching of VS Code, no debug port, no "installation corrupt" warning.** The extension activates on startup so the badge is available immediately.
-
-Configure it with **`go-to-next-change.currentFileBadge`**: any emoji or character (up to 2 — e.g. `🔥`, `⭐`, `👉`, or two like `🔥🔥` for a slightly wider mark), or set it empty to turn the badge off.
-
-> **Known limitation — partially-staged files show the badge on _both_ rows.** A dual-state file's "Staged Changes" row and "Changes" row are the **same file path**, and VS Code's decoration API is keyed *only* on that path — it is never told which side/group a row belongs to, so one badge result necessarily applies to both rows. Marking only one side isn't possible through any supported extension API (the group identity stays inside VS Code's SCM tree); it would require DOM manipulation via the remote-debugging port or a separate, non-git panel section — both deliberately avoided here. This was confirmed against the VS Code source and an independent review. The editor tab title (`(Index)` vs `(Working Tree)`) still tells you which side you're viewing.
-
-### 6. Optional: reveal/select staged files in Source Control (`revealStagedInSourceControl`)
-
-**What:** An **opt-in** setting (default **off**) that also selects/highlights the row in the Source Control view as you navigate, including for staged files.
-
-**Why:** VS Code's built-in `scm.autoReveal` highlights the row for *unstaged* diffs but can't reveal **staged** (`git:`-scheme) diffs. This setting works around it by briefly making the file the active editor (so auto-reveal selects its row) and then opening the staged diff. It's off by default because of the trade-offs: a brief flash of the file, and for partially-staged files it highlights the unstaged copy. Tracked upstream at [microsoft/vscode#320087](https://github.com/microsoft/vscode/issues/320087).
-
-### 7. Reveal the current file in Explorer — even from a staged diff
-
-**What:** A command, **`go-to-next-change.reveal-current-file-in-explorer`**, that **opens the real working file in a normal editor *and* reveals/selects it in the Explorer tree** — and unlike VS Code's built-in "Reveal in Explorer," it **works when you're looking at a staged diff**. (Reveal alone only highlights the tree node; this also opens the editable on-disk file so you don't have to press Space/Enter after.) It also **preserves your cursor and scroll position** — the working file opens right where you were reading in the diff, not at the top. Works from unstaged diffs and plain editors too.
-
-**Why:** The staged side of a diff is a read-only **`git:`-scheme virtual document** (the index blob) with no real file on disk, so VS Code's built-in reveal has no Explorer node to select and silently does nothing — a confirmed, still-open upstream bug: [microsoft/vscode#240657](https://github.com/microsoft/vscode/issues/240657). This command resolves that `git:` URI back to the on-disk `file:` path and reveals *that*, via the supported [`revealInExplorer`](https://github.com/microsoft/vscode/issues/94720) command. (The old `git.openFile` + reveal workaround didn't work here, because `git.openFile` can't resolve a manually-opened staged diff.)
-
-**Bind it** — e.g. make `cmd+shift+e` reveal from any diff. In your `keybindings.json`:
-
-```json
-{ "key": "cmd+shift+e", "command": "go-to-next-change.reveal-current-file-in-explorer", "when": "isInDiffEditor" }
+  // ...or pick anything else you like:
+  // { "key": "alt+j", "command": "go-to-next-change.smart-forward" },
+  // { "key": "alt+k", "command": "go-to-next-change.smart-back" }
+]
 ```
 
-> **Related limitation we did _not_ fix — go-to-definition / cmd-click in staged diffs.** VS Code declined that one **by design** ([microsoft/vscode#34034](https://github.com/microsoft/vscode/issues/34034)): resolving a symbol against the read-only index blob would be silently inaccurate whenever the staged content differs from disk, so semantic language features are disabled on the `git:` (index) side. They work normally on the **working-tree / unstaged** side. If you need to jump to a symbol from a staged diff, reveal the file (above) or open the working copy and navigate there.
+VS Code resolves keybindings by the character a key *produces* on your active layout, so
+binding to `alt+w` / `alt+e` on Dvorak targets the same physical keys QWERTY users get
+with `alt+,` / `alt+.`.
 
----
+## Overriding any keybinding
 
-## Settings (this fork)
+Every default ships from the extension and can be overridden per command. To change one,
+open *Preferences: Open Keyboard Shortcuts*, search for the command (they're all under the
+`go-to-next-change.*` namespace — e.g. `go-to-next-change.smart-forward`), and assign your
+own key. To disable a default instead, add a rule prefixed with `-` in `keybindings.json`:
 
--   **`go-to-next-change.currentFileBadge`** (string, default `🔴`) — badge shown on the file you're currently reviewing. Up to 2 characters; empty disables it.
--   **`go-to-next-change.revealStagedInSourceControl`** (boolean, default `false`) — also select/highlight files (incl. staged) in the Source Control view while navigating. See section 6 for trade-offs.
--   **`go-to-next-change.promptBeforeNextFile`** (boolean) — confirm before jumping to the next/previous file at the end of the current one.
--   **`go-to-next-change.treeView`** / **`go-to-next-change.shouldOpenScmView`** — as in the original.
-
-## Install (this fork)
-
-Not on the Marketplace — build and install the `.vsix` locally:
-
-```bash
-git clone https://github.com/EthanSK/go-to-next-change.git
-cd go-to-next-change
-npm install
-npx @vscode/vsce package --no-dependencies
-code --install-extension go-to-next-change-*.vsix --force
+```jsonc
+{ "key": "alt+.", "command": "-go-to-next-change.smart-forward" }
 ```
 
-Then reload the window.
+> Note: the command **IDs** are intentionally kept under the `go-to-next-change.*`
+> namespace (the extension's original name) even though the extension is now published as
+> *Better Git VS Code*. This keeps existing keybindings and external tools that reference
+> these command IDs working. A display name that differs from the command namespace is
+> common and expected for VS Code extensions.
 
-## Suggestions & Issues
+## Settings
 
-Suggestions and issues related to the **original** extension can be submitted [on Github](https://github.com/alfredbirk/go-to-next-change/issues). For anything specific to this fork, use [this fork's issues](https://github.com/EthanSK/go-to-next-change/issues).
+A few behaviours are configurable under **Settings → Better Git VS Code**:
+
+- **List vs Tree view** in Source Control (`go-to-next-change.treeView`).
+- Whether the Source Control panel opens on navigation (`shouldOpenScmView`).
+- Confirmation prompt before rolling onto the next file (`promptBeforeNextFile`).
+- The badge shown on the file you're currently reviewing (`currentFileBadge`, default 🔴).
+- Experimental staged-file highlighting (`revealStagedInSourceControl`).
+
+## Credits
+
+Better Git VS Code is a fork of
+[**alfredbirk/go-to-next-change**](https://github.com/alfredbirk/go-to-next-change),
+extended with a stage-and-advance review flow, staged-diff navigation, smart
+forward/back, and the QWERTY `<` / `>` default keys. Thanks to Alfred Birk for the
+original extension.
+
+## License
+
+[MIT](LICENSE).

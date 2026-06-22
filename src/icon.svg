@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  better-git-vscode marketplace icon (original artwork, authored for this fork).
+  Motif: keyboard-driven git-diff navigation.
+    - A vertical git "spine" with up/down chevron arrows = jumping between changes.
+    - Two change-marker nodes on the spine: a green "+" (added) node at the
+      forward/down position and a red "-" (removed) node at the back/up position,
+      echoing diff gutter markers without copying upstream's plain green "+".
+    - Dark slate background + neon cyan/green gradients + subtle circuit traces
+      give the "high-tech" marketplace-tile look requested.
+  Designed at 512x512 user units; rasterized to 128/256 PNG. Do NOT reintroduce
+  alfredbirk's logo.png — it is his branding and cannot ship.
+-->
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Dark tile background gradient (deep slate, slight top-light) -->
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#11161f"/>
+      <stop offset="1" stop-color="#070a0f"/>
+    </linearGradient>
+    <!-- Neon spine gradient: cyan at top fading to green at bottom -->
+    <linearGradient id="spine" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#22d3ee"/>
+      <stop offset="0.55" stop-color="#34d399"/>
+      <stop offset="1" stop-color="#22c55e"/>
+    </linearGradient>
+    <radialGradient id="addGlow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#4ade80"/>
+      <stop offset="1" stop-color="#16a34a"/>
+    </radialGradient>
+    <radialGradient id="delGlow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#fb7185"/>
+      <stop offset="1" stop-color="#e11d48"/>
+    </radialGradient>
+    <!-- Soft outer glow for neon accents -->
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="6" result="b"/>
+      <feMerge>
+        <feMergeNode in="b"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Rounded-rect tile background -->
+  <rect x="0" y="0" width="512" height="512" rx="104" fill="url(#bg)"/>
+
+  <!-- Subtle circuit traces in the corners (low-opacity tech texture) -->
+  <g stroke="#1f2a3a" stroke-width="4" fill="none" opacity="0.8">
+    <path d="M56 96 H140 V150"/>
+    <path d="M456 416 H372 V362"/>
+    <path d="M64 380 H120 V340"/>
+    <path d="M448 132 H392 V172"/>
+    <circle cx="140" cy="150" r="6" fill="#1f2a3a" stroke="none"/>
+    <circle cx="372" cy="362" r="6" fill="#1f2a3a" stroke="none"/>
+  </g>
+
+  <!-- Up chevron (navigate to previous change) -->
+  <path d="M196 132 L256 84 L316 132" fill="none" stroke="url(#spine)"
+        stroke-width="22" stroke-linecap="round" stroke-linejoin="round"
+        filter="url(#glow)" opacity="0.95"/>
+
+  <!-- Vertical git spine connecting the change nodes -->
+  <rect x="246" y="150" width="20" height="212" rx="10"
+        fill="url(#spine)" filter="url(#glow)"/>
+
+  <!-- Down chevron (navigate to next change) -->
+  <path d="M196 380 L256 428 L316 380" fill="none" stroke="url(#spine)"
+        stroke-width="22" stroke-linecap="round" stroke-linejoin="round"
+        filter="url(#glow)" opacity="0.95"/>
+
+  <!-- Removed-change node (top): red circle with a "-" marker -->
+  <g filter="url(#glow)">
+    <circle cx="256" cy="186" r="40" fill="url(#delGlow)"/>
+    <rect x="234" y="178" width="44" height="16" rx="8" fill="#1b0610"/>
+  </g>
+
+  <!-- Added-change node (bottom): green circle with a "+" marker -->
+  <g filter="url(#glow)">
+    <circle cx="256" cy="326" r="46" fill="url(#addGlow)"/>
+    <rect x="232" y="318" width="48" height="16" rx="8" fill="#06140b"/>
+    <rect x="248" y="302" width="16" height="48" rx="8" fill="#06140b"/>
+  </g>
+</svg>

@@ -1,5 +1,12 @@
 # Change Log
 
+## [1.0.0] (ethansk fork) — first public Marketplace release
+
+- **Renamed for public release:** extension is now **Better Git VS Code** (`name: better-git-vscode`, publisher `ethansk`). Command IDs are deliberately **unchanged** (still `go-to-next-change.*`) so existing keybindings, Karabiner rules, and external tools keep working — a display name that differs from the command namespace is normal for VS Code extensions.
+- **New headline keybindings:** `alt+.` → smart-forward (next change), `alt+,` → smart-back (previous change). On QWERTY these are the physical `>` / `<` keycaps, so the keys literally point forward/back. The other commands were reconciled onto matching `.`/`,` chords (next/prev changed file = `ctrl/cmd+alt+.`/`,`; stage-and-advance = `shift+alt+.`/`,`); `alt+z`/`alt+a` (in-file change nav), `alt+q` (revert) and `alt+r` (reveal) kept.
+- **Original icon:** replaced the upstream logo with an original high-tech 128/256px tile (dark slate, neon cyan→green git "spine", up/down nav chevrons, red `-` / green `+` change-marker nodes, subtle circuit traces). Authored as `src/icon.svg`, rasterized to `src/icon.png`.
+- **README rewrite** with our branding, a full keybindings table (mac + win/linux), a Dvorak remap section, and an overriding-keybindings note. Credits the upstream fork (alfredbirk/go-to-next-change); LICENSE retained.
+
 ## [1.0]
 
 - Initial release

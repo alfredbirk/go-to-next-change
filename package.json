@@ -1,9 +1,9 @@
 {
-    "name": "go-to-next-change",
-    "displayName": "Go to next change",
-    "description": "Cycle through diffs in changed files. When at the end of a file, it will automatically jump to the next file.",
-    "version": "0.8.5",
-    "icon": "src/logo.png",
+    "name": "better-git-vscode",
+    "displayName": "Better Git VS Code",
+    "description": "Fast keyboard-driven git diff review — jump between changes and changed files, stage-and-advance, revert, all without the mouse.",
+    "version": "1.0.0",
+    "icon": "src/icon.png",
     "engines": {
         "vscode": "^1.83.0"
     },
@@ -91,7 +91,7 @@
             ]
         },
         "configuration": {
-            "title": "Go to next change",
+            "title": "Better Git VS Code",
             "properties": {
                 "go-to-next-change.treeView": {
                     "type": "boolean",
@@ -122,6 +122,16 @@
         },
         "keybindings": [
             {
+                "command": "go-to-next-change.smart-forward",
+                "key": "alt+.",
+                "mac": "alt+."
+            },
+            {
+                "command": "go-to-next-change.smart-back",
+                "key": "alt+,",
+                "mac": "alt+,"
+            },
+            {
                 "command": "go-to-next-change.go-to-next-scm-change",
                 "key": "alt+z",
                 "mac": "alt+z"
@@ -133,13 +143,23 @@
             },
             {
                 "command": "go-to-next-change.go-to-next-changed-file",
-                "key": "ctrl+alt+z",
-                "mac": "cmd+alt+z"
+                "key": "ctrl+alt+.",
+                "mac": "cmd+alt+."
             },
             {
                 "command": "go-to-next-change.go-to-previous-changed-file",
-                "key": "ctrl+alt+a",
-                "mac": "cmd+alt+a"
+                "key": "ctrl+alt+,",
+                "mac": "cmd+alt+,"
+            },
+            {
+                "command": "go-to-next-change.stage-and-go-to-next-changed-file",
+                "key": "shift+alt+.",
+                "mac": "shift+alt+."
+            },
+            {
+                "command": "go-to-next-change.stage-and-go-to-previous-changed-file",
+                "key": "shift+alt+,",
+                "mac": "shift+alt+,"
             },
             {
                 "command": "go-to-next-change.revert-and-save",
@@ -147,14 +167,9 @@
                 "mac": "alt+q"
             },
             {
-                "command": "go-to-next-change.stage-and-go-to-next-changed-file",
-                "key": "shift+alt+z",
-                "mac": "shift+alt+z"
-            },
-            {
-                "command": "go-to-next-change.stage-and-go-to-previous-changed-file",
-                "key": "shift+alt+a",
-                "mac": "shift+alt+a"
+                "command": "go-to-next-change.reveal-current-file-in-explorer",
+                "key": "alt+r",
+                "mac": "alt+r"
             }
         ]
     },

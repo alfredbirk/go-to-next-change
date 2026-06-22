@@ -24,6 +24,16 @@ Each entry looks like:
 (newest first)
 
 ---
+**Date:** 2026-06-22T19:05:32Z
+**Trigger:** productize for marketplace publish under publisher ethansk renamed better-git-vscode
+**Symptom:** Productizing go-to-next-change fork for public Marketplace publish: rename, keybindings, original icon, vsix package
+**Root cause:** Upstream identity (name/displayName/logo.png) is alfredbirk's and cannot ship; needed own branding while keeping command IDs stable
+**Fix:** package.json name=better-git-vscode, displayName=Better Git VS Code, v1.0.0, icon=src/icon.png. Kept command IDs as go-to-next-change.* so Ethan's keybindings keep working. New headline keys alt+. (smart-forward) / alt+, (smart-back) = QWERTY >/< keys. Original icon authored as src/icon.svg, rasterized via npx --no-save sharp (density 384) since rsvg-convert/qlmanage-SVG unavailable on this Mac. npx vsce package OK.
+**Commit:** pending
+**Guard:** CHANGELOG 1.0.0 entry documents the rename+keybinding rationale; package.json validated as JSON; vsix contents verified (icon.png in, logo.png out, no sharp leak)
+---
+
+---
 **Date:** 2026-06-15T16:13:35Z
 **Trigger:** staged-file editor-not-found 2026-06-15
 **Symptom:** 'The editor could not be opened because the file was not found' when go-to-next/prev navigates onto a STAGED file (newly-added or staged-for-deletion)
