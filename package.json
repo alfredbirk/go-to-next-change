@@ -78,7 +78,7 @@
             },
             {
                 "command": "go-to-next-change.reveal-current-file-in-explorer",
-                "title": "Reveal current file in Explorer (works from staged diffs)"
+                "title": "Open & reveal current file in Explorer (works from staged diffs)"
             }
         ],
         "menus": {

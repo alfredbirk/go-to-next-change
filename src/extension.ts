@@ -86,7 +86,13 @@ export function activate(context: vscode.ExtensionContext) {
     let disposable11 = vscode.commands.registerCommand("go-to-next-change.reveal-current-file-in-explorer", async () => {
         const uri = await getActiveFileUri();
         if (uri) {
+            // Reveal/select the file in the Explorer tree, THEN open the real working-tree file in a normal
+            // editor. Reveal alone only highlights the tree node — you'd still have to press Space/Enter to
+            // actually open it; vscode.open does that for you, on the editable on-disk file (not the read-only
+            // staged git: content). Order matters: reveal first (it focuses the Explorer), open last so the
+            // editor ends up focused and showing the file.
             await vscode.commands.executeCommand("revealInExplorer", uri);
+            await vscode.commands.executeCommand("vscode.open", uri);
         }
     });
 
