@@ -84,15 +84,37 @@ export function activate(context: vscode.ExtensionContext) {
     // THAT. Bind to cmd+shift+e (when: isInDiffEditor) to make reveal work from staged diffs. Works from
     // unstaged diffs and plain editors too (getActiveFileUri handles all three).
     let disposable11 = vscode.commands.registerCommand("go-to-next-change.reveal-current-file-in-explorer", async () => {
+        // Capture the cursor + scroll position of the diff you're viewing FIRST (synchronously, before any
+        // await), so the working file can open at the SAME spot instead of jumping to the top.
+        // vscode.window.activeTextEditor is the diff's focused side: selection.active is the cursor,
+        // visibleRanges[0].start is the top visible line.
+        const src = vscode.window.activeTextEditor;
+        const cursor = src?.selection.active;
+        const topLine = src?.visibleRanges && src.visibleRanges.length > 0 ? src.visibleRanges[0].start.line : undefined;
+
         const uri = await getActiveFileUri();
-        if (uri) {
-            // Reveal/select the file in the Explorer tree, THEN open the real working-tree file in a normal
-            // editor. Reveal alone only highlights the tree node — you'd still have to press Space/Enter to
-            // actually open it; vscode.open does that for you, on the editable on-disk file (not the read-only
-            // staged git: content). Order matters: reveal first (it focuses the Explorer), open last so the
-            // editor ends up focused and showing the file.
-            await vscode.commands.executeCommand("revealInExplorer", uri);
-            await vscode.commands.executeCommand("vscode.open", uri);
+        if (!uri) {
+            return;
+        }
+        // Reveal/select in the Explorer, then OPEN the real working-tree file in a normal editor (reveal alone
+        // only highlights the tree node; this opens the editable on-disk file so you don't press Space/Enter).
+        await vscode.commands.executeCommand("revealInExplorer", uri);
+        const editor = await vscode.window.showTextDocument(uri, { preview: false });
+
+        // Restore cursor + scroll. Clamp to the working file's length: a partially-staged file's index content
+        // can differ from the working tree, so the diff's line/column might not exist on disk.
+        const lastLine = Math.max(0, editor.document.lineCount - 1);
+        if (cursor) {
+            const line = Math.min(cursor.line, lastLine);
+            const ch = Math.min(cursor.character, editor.document.lineAt(line).text.length);
+            const pos = new vscode.Position(line, ch);
+            editor.selection = new vscode.Selection(pos, pos);
+        }
+        if (topLine !== undefined) {
+            const top = Math.min(topLine, lastLine);
+            editor.revealRange(new vscode.Range(top, 0, top, 0), vscode.TextEditorRevealType.AtTop); // match scroll: same top line
+        } else if (cursor) {
+            editor.revealRange(editor.selection, vscode.TextEditorRevealType.InCenterIfOutsideViewport);
         }
     });
 

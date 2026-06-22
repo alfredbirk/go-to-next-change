@@ -8,6 +8,10 @@
 
 - Close file after last change
 
+## [0.8.5] (ethansk fork)
+
+- `reveal-current-file-in-explorer` now **preserves your cursor and scroll position** — when it opens the working file from a staged diff, you land exactly where you were reading in the diff instead of jumping to the top. The cursor and top-visible-line are captured from the diff's active side and re-applied (clamped to the working file's length, since a partially-staged file's index and working-tree content can differ).
+
 ## [0.8.4] (ethansk fork)
 
 - New: **`go-to-next-change.reveal-current-file-in-explorer`** — **opens the real working file in a normal editor AND reveals/selects it in the Explorer tree**, and crucially it **works from staged diffs**, where VS Code's built-in "Reveal in Explorer" silently does nothing. (Reveal alone only highlights the tree node — it also opens the editable on-disk file so you don't have to press Space/Enter after.) The staged side of a diff is a read-only `git:`-scheme virtual document (the index blob) with no node in the `file:`-based Explorer tree, so the built-in reveal has nothing to select — a confirmed, still-open upstream bug ([microsoft/vscode#240657](https://github.com/microsoft/vscode/issues/240657)). This command resolves that `git:` uri back to the on-disk `file:` path and reveals *that* via the supported [`revealInExplorer`](https://github.com/microsoft/vscode/issues/94720) command (works from unstaged diffs and plain editors too). Bind it to `cmd+shift+e` with `"when": "isInDiffEditor"`.
