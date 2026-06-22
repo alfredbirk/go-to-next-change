@@ -55,6 +55,7 @@ Stages the whole current file — exactly like clicking the `+` next to it in th
 -   Revert selected changes and save file: `alt+q` / `opt+q`
 -   Go to next changed file: `ctrl+alt+z` / `cmd+alt+z`
 -   Go to previous changed file: `ctrl+alt+a` / `cmd+alt+a`
+-   **(fork)** Reveal current file in Explorer — works from **staged** diffs (command `go-to-next-change.reveal-current-file-in-explorer`; see [section 7](#7-reveal-the-current-file-in-explorer--even-from-a-staged-diff))
 
 ## If you use Tree view
 
@@ -103,6 +104,20 @@ Configure it with **`go-to-next-change.currentFileBadge`**: any emoji or charact
 **What:** An **opt-in** setting (default **off**) that also selects/highlights the row in the Source Control view as you navigate, including for staged files.
 
 **Why:** VS Code's built-in `scm.autoReveal` highlights the row for *unstaged* diffs but can't reveal **staged** (`git:`-scheme) diffs. This setting works around it by briefly making the file the active editor (so auto-reveal selects its row) and then opening the staged diff. It's off by default because of the trade-offs: a brief flash of the file, and for partially-staged files it highlights the unstaged copy. Tracked upstream at [microsoft/vscode#320087](https://github.com/microsoft/vscode/issues/320087).
+
+### 7. Reveal the current file in Explorer — even from a staged diff
+
+**What:** A command, **`go-to-next-change.reveal-current-file-in-explorer`**, that reveals and selects the file you're viewing in the Explorer tree — and unlike VS Code's built-in "Reveal in Explorer," it **works when you're looking at a staged diff**. It works from unstaged diffs and plain editors too.
+
+**Why:** The staged side of a diff is a read-only **`git:`-scheme virtual document** (the index blob) with no real file on disk, so VS Code's built-in reveal has no Explorer node to select and silently does nothing — a confirmed, still-open upstream bug: [microsoft/vscode#240657](https://github.com/microsoft/vscode/issues/240657). This command resolves that `git:` URI back to the on-disk `file:` path and reveals *that*, via the supported [`revealInExplorer`](https://github.com/microsoft/vscode/issues/94720) command. (The old `git.openFile` + reveal workaround didn't work here, because `git.openFile` can't resolve a manually-opened staged diff.)
+
+**Bind it** — e.g. make `cmd+shift+e` reveal from any diff. In your `keybindings.json`:
+
+```json
+{ "key": "cmd+shift+e", "command": "go-to-next-change.reveal-current-file-in-explorer", "when": "isInDiffEditor" }
+```
+
+> **Related limitation we did _not_ fix — go-to-definition / cmd-click in staged diffs.** VS Code declined that one **by design** ([microsoft/vscode#34034](https://github.com/microsoft/vscode/issues/34034)): resolving a symbol against the read-only index blob would be silently inaccurate whenever the staged content differs from disk, so semantic language features are disabled on the `git:` (index) side. They work normally on the **working-tree / unstaged** side. If you need to jump to a symbol from a staged diff, reveal the file (above) or open the working copy and navigate there.
 
 ---
 

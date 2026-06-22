@@ -75,6 +75,21 @@ export function activate(context: vscode.ExtensionContext) {
         await smartNavigate("back");
     });
 
+    // Reveal the current file in the Explorer — works even from a STAGED diff, where VS Code's built-in
+    // "Reveal in Explorer" silently does nothing. WHY it's broken natively: the staged side of a diff is a
+    // read-only git:-scheme VIRTUAL document (the index blob) with no node in the file:-based Explorer tree,
+    // so reveal has nothing to select (open upstream bug: microsoft/vscode#240657). getActiveFileUri already
+    // resolves that git: uri back to the on-disk file: uri (via the git: query's {path}), and revealInExplorer
+    // is a supported command that reveals any file: uri (microsoft/vscode#94720). So we resolve, then reveal
+    // THAT. Bind to cmd+shift+e (when: isInDiffEditor) to make reveal work from staged diffs. Works from
+    // unstaged diffs and plain editors too (getActiveFileUri handles all three).
+    let disposable11 = vscode.commands.registerCommand("go-to-next-change.reveal-current-file-in-explorer", async () => {
+        const uri = await getActiveFileUri();
+        if (uri) {
+            await vscode.commands.executeCommand("revealInExplorer", uri);
+        }
+    });
+
     // OVERLAY (supported API, no patching): badge the file currently open as a diff with a "▶" marker via a
     // FileDecorationProvider. The badge renders on the row in the built-in Source Control panel (and the
     // Explorer/tabs), giving a "you are here" indicator on the real Git rows. Caveat: decorations key on the
@@ -127,7 +142,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         disposable, disposable2, disposable3, disposable4, disposable5, disposable6, disposable7, disposable8,
-        disposable9, disposable10,
+        disposable9, disposable10, disposable11,
         reviewDecoEmitter,
         vscode.window.registerFileDecorationProvider(reviewDecorationProvider),
         vscode.window.tabGroups.onDidChangeTabs(() => refreshReviewDecoration()),

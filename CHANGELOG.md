@@ -8,6 +8,11 @@
 
 - Close file after last change
 
+## [0.8.4] (ethansk fork)
+
+- New: **`go-to-next-change.reveal-current-file-in-explorer`** — reveals/selects the current file in the Explorer tree, and crucially it **works from staged diffs**, where VS Code's built-in "Reveal in Explorer" silently does nothing. The staged side of a diff is a read-only `git:`-scheme virtual document (the index blob) with no node in the `file:`-based Explorer tree, so the built-in reveal has nothing to select — a confirmed, still-open upstream bug ([microsoft/vscode#240657](https://github.com/microsoft/vscode/issues/240657)). This command resolves that `git:` uri back to the on-disk `file:` path and reveals *that* via the supported [`revealInExplorer`](https://github.com/microsoft/vscode/issues/94720) command (works from unstaged diffs and plain editors too). Bind it to `cmd+shift+e` with `"when": "isInDiffEditor"`.
+- Note: go-to-definition / cmd-click in **staged** diffs is a separate VS Code *by-design* limitation ([microsoft/vscode#34034](https://github.com/microsoft/vscode/issues/34034)) — semantic features are disabled on the read-only `git:` index side because results would be inaccurate; they work on the working-tree/unstaged side. Not fixed here (documented in the README).
+
 ## [0.8.1] (ethansk fork)
 
 - Fix: "The editor could not be opened because the file was not found" when navigating (go to next / previous change or changed file) onto a **staged** file that was newly added or staged for deletion. The staged diff was always built as HEAD ↔ index regardless of git status, so the side that legitimately has no content — HEAD for a brand-new staged file, the index for a staged deletion — pointed `git show` at a blob that doesn't exist, and VS Code's git content provider threw "file not found". The staged diff now picks its sides by git status (newly-added → empty original; staged deletion → empty modified; modified/renamed/copied → HEAD ↔ index as before), using git's empty-tree object as the guaranteed-resolvable empty side, exactly as VS Code's own Source Control does.

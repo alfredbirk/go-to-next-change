@@ -1,183 +1,187 @@
 {
-  "name": "go-to-next-change",
-  "displayName": "Go to next change",
-  "description": "Cycle through diffs in changed files. When at the end of a file, it will automatically jump to the next file.",
-  "version": "0.8.3",
-  "icon": "src/logo.png",
-  "engines": {
-    "vscode": "^1.83.0"
-  },
-  "keywords": [
-    "next",
-    "change",
-    "changed",
-    "file",
-    "files",
-    "shortcut",
-    "hotkey",
-    "git",
-    "scm",
-    "source control",
-    "cycle",
-    "previous"
-  ],
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/EthanSK/go-to-next-change"
-  },
-  "publisher": "ethansk",
-  "categories": [
-    "Other"
-  ],
-  "activationEvents": [
-    "onStartupFinished"
-  ],
-  "main": "./dist/extension.js",
-  "contributes": {
-    "commands": [
-      {
-        "command": "go-to-next-change.go-to-next-scm-change",
-        "title": "Go to next git change"
-      },
-      {
-        "command": "go-to-next-change.go-to-previous-scm-change",
-        "title": "Go to previous git change"
-      },
-      {
-        "command": "go-to-next-change.go-to-next-changed-file",
-        "title": "Go to next changed file"
-      },
-      {
-        "command": "go-to-next-change.go-to-previous-changed-file",
-        "title": "Go to previous changed file"
-      },
-      {
-        "command": "go-to-next-change.revert-and-save",
-        "title": "Revert selected changes and save"
-      },
-      {
-        "command": "go-to-next-change.stage-and-go-to-next-changed-file",
-        "title": "Stage current file and go to next unstaged change"
-      },
-      {
-        "command": "go-to-next-change.stage-and-go-to-previous-changed-file",
-        "title": "Stage current file and go to previous unstaged change"
-      },
-      {
-        "command": "go-to-next-change.stage-current-file",
-        "title": "Stage current file",
-        "icon": "$(add)"
-      },
-      {
-        "command": "go-to-next-change.smart-forward",
-        "title": "Smart forward (next change in a diff, else navigate forward)"
-      },
-      {
-        "command": "go-to-next-change.smart-back",
-        "title": "Smart back (previous change in a diff, else navigate back)"
-      }
+    "name": "go-to-next-change",
+    "displayName": "Go to next change",
+    "description": "Cycle through diffs in changed files. When at the end of a file, it will automatically jump to the next file.",
+    "version": "0.8.4",
+    "icon": "src/logo.png",
+    "engines": {
+        "vscode": "^1.83.0"
+    },
+    "keywords": [
+        "next",
+        "change",
+        "changed",
+        "file",
+        "files",
+        "shortcut",
+        "hotkey",
+        "git",
+        "scm",
+        "source control",
+        "cycle",
+        "previous"
     ],
-    "menus": {
-      "editor/title": [
-        {
-          "command": "go-to-next-change.stage-current-file",
-          "group": "navigation",
-          "when": "gitOpenRepositoryCount != 0"
-        }
-      ]
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/EthanSK/go-to-next-change"
     },
-    "configuration": {
-      "title": "Go to next change",
-      "properties": {
-        "go-to-next-change.treeView": {
-          "type": "boolean",
-          "default": false,
-          "description": "Check this If you use Tree view (as opposed to List view)"
+    "publisher": "ethansk",
+    "categories": [
+        "Other"
+    ],
+    "activationEvents": [
+        "onStartupFinished"
+    ],
+    "main": "./dist/extension.js",
+    "contributes": {
+        "commands": [
+            {
+                "command": "go-to-next-change.go-to-next-scm-change",
+                "title": "Go to next git change"
+            },
+            {
+                "command": "go-to-next-change.go-to-previous-scm-change",
+                "title": "Go to previous git change"
+            },
+            {
+                "command": "go-to-next-change.go-to-next-changed-file",
+                "title": "Go to next changed file"
+            },
+            {
+                "command": "go-to-next-change.go-to-previous-changed-file",
+                "title": "Go to previous changed file"
+            },
+            {
+                "command": "go-to-next-change.revert-and-save",
+                "title": "Revert selected changes and save"
+            },
+            {
+                "command": "go-to-next-change.stage-and-go-to-next-changed-file",
+                "title": "Stage current file and go to next unstaged change"
+            },
+            {
+                "command": "go-to-next-change.stage-and-go-to-previous-changed-file",
+                "title": "Stage current file and go to previous unstaged change"
+            },
+            {
+                "command": "go-to-next-change.stage-current-file",
+                "title": "Stage current file",
+                "icon": "$(add)"
+            },
+            {
+                "command": "go-to-next-change.smart-forward",
+                "title": "Smart forward (next change in a diff, else navigate forward)"
+            },
+            {
+                "command": "go-to-next-change.smart-back",
+                "title": "Smart back (previous change in a diff, else navigate back)"
+            },
+            {
+                "command": "go-to-next-change.reveal-current-file-in-explorer",
+                "title": "Reveal current file in Explorer (works from staged diffs)"
+            }
+        ],
+        "menus": {
+            "editor/title": [
+                {
+                    "command": "go-to-next-change.stage-current-file",
+                    "group": "navigation",
+                    "when": "gitOpenRepositoryCount != 0"
+                }
+            ]
         },
-        "go-to-next-change.shouldOpenScmView": {
-          "type": "boolean",
-          "default": true,
-          "description": "Controls whether the source control side panel should open when going to next/previous change"
+        "configuration": {
+            "title": "Go to next change",
+            "properties": {
+                "go-to-next-change.treeView": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Check this If you use Tree view (as opposed to List view)"
+                },
+                "go-to-next-change.shouldOpenScmView": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Controls whether the source control side panel should open when going to next/previous change"
+                },
+                "go-to-next-change.promptBeforeNextFile": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Show a confirmation prompt before jumping to the next/previous file when reaching the end of the current file"
+                },
+                "go-to-next-change.revealStagedInSourceControl": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Experimental: also select/highlight staged files in the Source Control view while navigating (works around a VS Code limitation where staged diffs can't be auto-revealed). May cause a brief flash of the file, and for partially-staged files highlights the unstaged copy. Requires scm.autoReveal (on by default)."
+                },
+                "go-to-next-change.currentFileBadge": {
+                    "type": "string",
+                    "default": "🔴",
+                    "description": "The badge shown on the file you're currently reviewing, in the Source Control panel (and Explorer/tabs). Max 2 characters — an emoji renders in colour and is the most visible option (the Source Control panel ignores decoration colours). Loud choices: 🔴 🚨 🟥 🔥 ❗ ⭐ 👉. Tip: two emoji (e.g. 🔴🔴) is allowed and renders a bit wider. Set to empty to disable the badge."
+                }
+            }
         },
-        "go-to-next-change.promptBeforeNextFile": {
-          "type": "boolean",
-          "default": true,
-          "description": "Show a confirmation prompt before jumping to the next/previous file when reaching the end of the current file"
-        },
-        "go-to-next-change.revealStagedInSourceControl": {
-          "type": "boolean",
-          "default": false,
-          "description": "Experimental: also select/highlight staged files in the Source Control view while navigating (works around a VS Code limitation where staged diffs can't be auto-revealed). May cause a brief flash of the file, and for partially-staged files highlights the unstaged copy. Requires scm.autoReveal (on by default)."
-        },
-        "go-to-next-change.currentFileBadge": {
-          "type": "string",
-          "default": "🔴",
-          "description": "The badge shown on the file you're currently reviewing, in the Source Control panel (and Explorer/tabs). Max 2 characters — an emoji renders in colour and is the most visible option (the Source Control panel ignores decoration colours). Loud choices: 🔴 🚨 🟥 🔥 ❗ ⭐ 👉. Tip: two emoji (e.g. 🔴🔴) is allowed and renders a bit wider. Set to empty to disable the badge."
-        }
-      }
+        "keybindings": [
+            {
+                "command": "go-to-next-change.go-to-next-scm-change",
+                "key": "alt+z",
+                "mac": "alt+z"
+            },
+            {
+                "command": "go-to-next-change.go-to-previous-scm-change",
+                "key": "alt+a",
+                "mac": "alt+a"
+            },
+            {
+                "command": "go-to-next-change.go-to-next-changed-file",
+                "key": "ctrl+alt+z",
+                "mac": "cmd+alt+z"
+            },
+            {
+                "command": "go-to-next-change.go-to-previous-changed-file",
+                "key": "ctrl+alt+a",
+                "mac": "cmd+alt+a"
+            },
+            {
+                "command": "go-to-next-change.revert-and-save",
+                "key": "alt+q",
+                "mac": "alt+q"
+            },
+            {
+                "command": "go-to-next-change.stage-and-go-to-next-changed-file",
+                "key": "shift+alt+z",
+                "mac": "shift+alt+z"
+            },
+            {
+                "command": "go-to-next-change.stage-and-go-to-previous-changed-file",
+                "key": "shift+alt+a",
+                "mac": "shift+alt+a"
+            }
+        ]
     },
-    "keybindings": [
-      {
-        "command": "go-to-next-change.go-to-next-scm-change",
-        "key": "alt+z",
-        "mac": "alt+z"
-      },
-      {
-        "command": "go-to-next-change.go-to-previous-scm-change",
-        "key": "alt+a",
-        "mac": "alt+a"
-      },
-      {
-        "command": "go-to-next-change.go-to-next-changed-file",
-        "key": "ctrl+alt+z",
-        "mac": "cmd+alt+z"
-      },
-      {
-        "command": "go-to-next-change.go-to-previous-changed-file",
-        "key": "ctrl+alt+a",
-        "mac": "cmd+alt+a"
-      },
-      {
-        "command": "go-to-next-change.revert-and-save",
-        "key": "alt+q",
-        "mac": "alt+q"
-      },
-      {
-        "command": "go-to-next-change.stage-and-go-to-next-changed-file",
-        "key": "shift+alt+z",
-        "mac": "shift+alt+z"
-      },
-      {
-        "command": "go-to-next-change.stage-and-go-to-previous-changed-file",
-        "key": "shift+alt+a",
-        "mac": "shift+alt+a"
-      }
-    ]
-  },
-  "scripts": {
-    "vscode:prepublish": "npm run package",
-    "compile": "webpack",
-    "watch": "webpack --watch",
-    "package": "webpack --mode production --devtool hidden-source-map",
-    "compile-tests": "tsc -p . --outDir out",
-    "watch-tests": "tsc -p . -w --outDir out",
-    "pretest": "npm run compile-tests && npm run compile && npm run lint",
-    "lint": "eslint src --ext ts",
-    "test": "node ./out/test/runTest.js"
-  },
-  "devDependencies": {
-    "@types/vscode": "^1.83.0",
-    "@types/mocha": "^10.0.3",
-    "@types/node": "18.x",
-    "@typescript-eslint/eslint-plugin": "^6.9.0",
-    "@typescript-eslint/parser": "^6.9.0",
-    "eslint": "^8.52.0",
-    "glob": "^10.3.10",
-    "mocha": "^10.2.0",
-    "typescript": "^5.2.2",
-    "ts-loader": "^9.5.0",
-    "webpack": "^5.89.0",
-    "webpack-cli": "^5.1.4",
-    "@vscode/test-electron": "^2.3.6"
-  }
+    "scripts": {
+        "vscode:prepublish": "npm run package",
+        "compile": "webpack",
+        "watch": "webpack --watch",
+        "package": "webpack --mode production --devtool hidden-source-map",
+        "compile-tests": "tsc -p . --outDir out",
+        "watch-tests": "tsc -p . -w --outDir out",
+        "pretest": "npm run compile-tests && npm run compile && npm run lint",
+        "lint": "eslint src --ext ts",
+        "test": "node ./out/test/runTest.js"
+    },
+    "devDependencies": {
+        "@types/vscode": "^1.83.0",
+        "@types/mocha": "^10.0.3",
+        "@types/node": "18.x",
+        "@typescript-eslint/eslint-plugin": "^6.9.0",
+        "@typescript-eslint/parser": "^6.9.0",
+        "eslint": "^8.52.0",
+        "glob": "^10.3.10",
+        "mocha": "^10.2.0",
+        "typescript": "^5.2.2",
+        "ts-loader": "^9.5.0",
+        "webpack": "^5.89.0",
+        "webpack-cli": "^5.1.4",
+        "@vscode/test-electron": "^2.3.6"
+    }
 }
