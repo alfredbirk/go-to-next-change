@@ -11,21 +11,25 @@
 
 ---
 
-## What it does
+Review your git changes at the speed of thought — one hand on the keyboard, no mouse, no Source Control panel hunting. Three features do the heavy lifting:
 
-Reviewing a diff in VS Code normally means a lot of scrolling and clicking around the
-Source Control panel. **Better Git VS Code** turns that into a tight keyboard loop:
+### 🔥 Jump between every git change, instantly
 
-- **Jump to the next / previous change** in the diff. When you reach the end of a file,
-  it automatically rolls onto the next changed file.
-- **Stage-and-advance** — stage the current file and immediately move to the next
-  unstaged change. Purpose-built for sweeping through a big AI-generated changeset.
-- **Revert** the change at your cursor and save, in one keystroke.
-- **Jump between changed files** directly.
-- **Reveal the current file** in the Explorer, even from inside a staged diff view.
+VS Code's built-in change navigation is a clunky, click-heavy chore. **This fixes it.** One key flies you to the next (or previous) change — and when you hit the end of a file, it rolls straight into the next changed file automatically. No scrolling, no clicking through the SCM tree, no losing your place. Fly through an entire AI-generated changeset like it's nothing.
 
-Everything is driven from the keyboard so you can review a large set of changes
-quickly without breaking flow.
+`Option+.` next · `Option+,` previous — literally the `>` / `<` keys, pointing the way.
+
+### Hold Shift to stage as you review
+
+Approve as you go. Holding **Shift** on the nav key stages the file you're looking at and jumps you straight to the next *unstaged* change — so reviewing and staging become one continuous flow. No reaching for the mouse, no detour to the Source Control panel. Sweep through, approving each file with a flick of the same key.
+
+`Shift+Option+.` stage & next · `Shift+Option+,` stage & previous.
+
+### Jump from a staged diff straight to the real file — same line
+
+When you open a *staged* file, what you see is a frozen, read-only snapshot of what's staged — you can't actually edit it there. Spot a bug mid-review and you'd normally have to go hunt down the real file. **One key does it for you:** it opens the actual, editable working file at the *exact* line and scroll position you were looking at. See it, fix it, on the spot.
+
+`Option+R` — open & reveal the real file *(remap to anything you like; see overrides below)*.
 
 ## Keybindings
 
@@ -93,6 +97,12 @@ own key. To disable a default instead, add a rule prefixed with `-` in `keybindi
 ```jsonc
 { "key": "alt+.", "command": "-go-to-next-change.smart-forward" }
 ```
+
+> Tip: many people prefer to map **Open & reveal current file in Explorer**
+> (`go-to-next-change.reveal-current-file-in-explorer`) to something like `Shift+Cmd+E`.
+> We ship the default as `Option+R` rather than `Shift+Cmd+E` because the latter is already
+> a built-in VS Code shortcut — but you're free to override it to `Shift+Cmd+E` (or anything
+> else) in your own `keybindings.json` if you don't mind reclaiming that combo.
 
 > Note: the command **IDs** are intentionally kept under the `go-to-next-change.*`
 > namespace (the extension's original name) even though the extension is now published as
