@@ -69,7 +69,7 @@
                 },
                 "go-to-next-change.promptBeforeNextFile": {
                     "type": "boolean",
-                    "default": true,
+                    "default": false,
                     "description": "Show a confirmation prompt before jumping to the next/previous file when reaching the end of the current file"
                 }
             }
