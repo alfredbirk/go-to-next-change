@@ -1,5 +1,10 @@
 ## 2026-11-14 — Distinguish Worktree link receipt from SCM presentation
 
+
+## 2026-11-14 — Local trial need not wait for Marketplace publication
+
+The previous AGENTS.md explicitly required Marketplace verification before local installation and forbade local VSIX packages. Ethan superseded that ordering: review and install a viable local package first, then complete full testing and the unchanged public Marketplace gate. Verify local identity and activation separately from public availability. Preserve the existing extension/settings, current working-window restrictions and supported update association; reconcile Gallery metadata through supported installation commands, never private metadata edits. This is a workflow correction, not a new installed extension or a restart authorization.
+
 The normal-workspace log confirmed receipt of repeated Worktree links, followed by `nativePending=true` while the receiving window was unfocused. One recent presentation resumed, lost focus twice during native tree commands, and expired. These records prove delivery and interrupted presentation; they do not identify which app took focus or prove that more delay would help. Keep the existing focus, input ownership and recent-link guards. A completed native handoff call is not proof of acknowledged app activation or focus on this particular Code window; the handoff log now records both separately.
 
 Ethan asked for a notification so he can tell that Better Git received the click. Application setting `worktreeLinkNotifications` is off by default. When enabled, it requests a numbered receipt before queued loading/focus work. Rendering is asynchronous. Never await its dismissal, and do not show it for palette opens or mouse/wand review routes. The receipt confirms delivery, not completed expansion. The existing generation supplies distinct repeat-click numbers without another counter, timer, debounce or retry.
