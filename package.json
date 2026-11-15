@@ -2,7 +2,7 @@
   "name": "better-git-vscode",
   "displayName": "Better Git VS Code",
   "description": "Fast, keyboard-driven Git change review in VS Code.",
-  "version": "1.2.167",
+  "version": "1.2.168",
   "icon": "src/icon.png",
   "engines": {
     "vscode": "^1.83.0"

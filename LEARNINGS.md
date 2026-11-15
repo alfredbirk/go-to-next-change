@@ -1,3 +1,9 @@
+## 2026-11-15 — Identify the Worktree target in compact receipts
+
+Ethan confirmed seeing the numbered receipt but wanted the target worktree and useful details. Put the decoded directory name first and include the exact full path in the same notification, retaining the request number. Use the existing request URI only: no Git call, filesystem check, extra wait or queued work is needed to identify a received target. Keep the optional setting, external-link-only scope and nonblocking dismissal behavior. Receipt still does not mean Source Control expansion completed.
+
+The first visual check showed VS Code clipping its compact toast to one line, hiding the target behind the old prefix. The final message starts `Better Git: {worktreeName}`; VS Code's native notification expander reveals the path and receipt number. Both compact and expanded Mini screenshots were inspected. Ten focused Mini checks passed, including decoded spaces/Unicode, actual rendering/expansion before blocked Git loading, repeat numbers, nondismissed notification continuation, disabled/palette silence, missing-path identification and unchanged Git state. All 254 non-GUI checks, TypeScript, focused lint and script syntax checks passed after the final product edit. Tested production JavaScript is `797057db379e52c625caaa09a09bac399cd718f54908057eac56a8907343e935`; packaged native helper is `a5c66ecc479611b5a0e73966f63f33206079f013985bd9e6aa1e961892b2b6f8`, with no native source change. The reviewed 1.2.168 local trial was installed before full testing/publication, preserving the working-window restriction; activation and final Gallery association are separate checks.
+
 ## 2026-11-14 — Distinguish Worktree link receipt from SCM presentation
 
 
