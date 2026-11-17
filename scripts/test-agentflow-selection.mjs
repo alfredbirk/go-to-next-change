@@ -83,21 +83,24 @@ try {
         client.on('end', () => resolve(JSON.parse(result)));
     });
     assert.equal(await query(Date.now()), null, 'No highlight must return null');
-    async function highlight(label) {
-        const box = await until(() => evaluate(`(()=>{const lines=[...document.querySelectorAll('.monaco-editor .view-line')].filter(e=>e.textContent.replaceAll('\\u00a0',' ').includes('AgentFlow selected code'));const e=lines.at(-1);if(!e)return null;const r=e.getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height};})()`), b => b?.width > 0, label);
+    async function highlight(label, selectedPrefix = 'AgentFlow selected code') {
+        const prefix = JSON.stringify(selectedPrefix);
+        const box = await until(() => evaluate(`(()=>{const lines=[...document.querySelectorAll('.monaco-editor .view-line')].filter(e=>e.textContent.replaceAll('\\u00a0',' ').includes(${prefix}));const e=lines.at(-1);if(!e)return null;const r=e.getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height};})()`), b => b?.width > 0, label);
         const since = Date.now();
         const y = box.y + box.height / 2;
         await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: box.x + 1, y, button: 'left', clickCount: 1 });
         await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: box.x + 180, y, button: 'left', buttons: 1 });
         await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: box.x + 180, y, button: 'left', clickCount: 1 });
-        const captured = await until(() => query(since), r => r?.text?.startsWith('AgentFlow'), label + ' bridge');
+        const captured = await until(() => query(since), r => r?.text?.startsWith(selectedPrefix), label + ' bridge');
         const state = await command('state');
         assert.equal(captured.text, state.text, 'Bridge must match the actual selected range');
+        assert.deepEqual(captured.location, state.editorLocation, 'Live selection includes the exact editor location');
         // Exercise the production Swift socket client too, not just a JS stand-in.
         if (process.env.AGENTFLOW_SELECTION_PROBE) {
             const actual = JSON.parse(execFileSync(process.env.AGENTFLOW_SELECTION_PROBE,
                 [String(ready.pid), String(since)], { encoding: 'utf8', timeout: 3000 }));
             assert.equal(actual.text, captured.text);
+            assert.deepEqual(actual.location, captured.location);
         }
         assert.equal(await query(since, { sourcePID: ready.pid + 1 }), null, 'Wrong process');
         assert.equal(await query(Date.now() + 200), null, 'Later unrelated gesture');
@@ -113,12 +116,14 @@ try {
         assert.equal(reply?.text, expectedText, `${surface} preselection must not require a new selection event`);
         assert.equal(reply.captureKind, 'startup');
         assert.equal(reply.surface, surface);
+        assert.deepEqual(reply.location, surface === 'editor' ? (await command('state')).editorLocation : undefined);
         assert.ok(reply.observedAt >= startedAt);
         if (process.env.AGENTFLOW_SELECTION_PROBE) {
             const native = JSON.parse(execFileSync(process.env.AGENTFLOW_SELECTION_PROBE,
                 [String(ready.pid), String(startedAt), surface, 'startup'], { encoding: 'utf8', timeout: 5000 }));
             assert.equal(native.surface, surface);
             assert.equal(native.text, expectedText, 'Production Swift startup pull must preserve preselected text');
+            assert.deepEqual(native.location, reply.location ?? null);
         }
         assert.equal(await query(Date.now()), null, 'Startup snapshot must not weaken a later live gesture');
         console.log(`PASS ${surface} preselected before startup -> companion -> production native client`);
@@ -135,7 +140,9 @@ try {
     await pause(100);
     assert.equal(await query(Date.now() - 500), null, 'Programmatic selection must not become context');
     await command('diff');
-    await highlight('diff editor, screen-reader mode off');
+    await highlight('original diff side', 'Original code');
+    await preselected('editor', (await command('state')).text);
+    await highlight('modified diff side');
     await preselected('editor', (await command('state')).text);
     await command('terminal');
     const terminalBox = await until(() => evaluate(`(() => {

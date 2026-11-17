@@ -1,3 +1,7 @@
+## Agent Flow editor selection locations
+
+Return the location from the same focused editor snapshot used for text. Both live and startup pulls share that extraction. The location identifies a local file or Git snapshot and the actual side of a text diff when VS Code can prove it. Use VS Code's UTF-16 coordinates, including the end of the text actually transferred after clipping. Do not copy arbitrary virtual-document URIs or attach editor coordinates to a terminal reply.
+
 ## 2026-11-17 — App switching must finish keyboard review before resetting its reader
 
 Ethan reported that switching away from Code while still holding review discarded the pending staging set. This was not introduced by the Worktree receipt releases: the October 7 mouse interruption fix in `b972d679` already captures earlier selected files, excludes the current preview even in Stage files/explosion mode, stages in the background without navigation, and makes late releases inert. The October 29 keyboard integration (`d59dd746`, 1.2.138) explicitly excluded keyboard from that path. Its modifier monitor integration (`cf79003c`, 1.2.139) also reset/cancelled the keyboard hold before the window-state listener could capture the batch. Both conditions had to change.

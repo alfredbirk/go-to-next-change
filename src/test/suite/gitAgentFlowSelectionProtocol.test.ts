@@ -1,9 +1,19 @@
 import * as assert from "assert";
-import { agentFlowSelectionEventKind, agentFlowSelectionIsFresh, agentFlowTerminalSelection, parseAgentFlowSelectionRequest } from "../../agentFlowSelectionProtocol";
+import { agentFlowEditorIdentity, agentFlowSelectionEventKind, agentFlowSelectionIsFresh, agentFlowTerminalSelection, parseAgentFlowSelectionRequest } from "../../agentFlowSelectionProtocol";
 
 suite("AgentFlow selection protocol", () => {
     const request = { version: 1 as const, nonce: "12345678-1234-1234-1234-123456789012", sourcePID: 42,
         gestureStartedAt: 9000, requestedAt: 10_000 };
+    test("editor identity distinguishes working files, Git snapshots and unsaved buffers", () => {
+        const path = "/workspace/Name & Code.swift";
+        const uri = { scheme: "file", path, fsPath: path, query: "" };
+        assert.deepStrictEqual(agentFlowEditorIdentity(uri), { documentKind: "file", filePath: path });
+        assert.deepStrictEqual(agentFlowEditorIdentity({ ...uri, scheme: "git", query: JSON.stringify({ path, ref: "~" }) }),
+            { documentKind: "git", filePath: path, gitRef: "~" });
+        assert.deepStrictEqual(agentFlowEditorIdentity({ ...uri, scheme: "untitled" }),
+            { documentKind: "untitled", documentName: "Name & Code.swift" });
+        assert.deepStrictEqual(agentFlowEditorIdentity({ ...uri, scheme: "custom", query: "private data" }), { documentKind: "virtual" });
+    });
     test("only a bounded versioned recent request is accepted", () => {
         assert.deepStrictEqual(parseAgentFlowSelectionRequest(request, 10_050), request);
         for (const update of [{ version: 2 }, { nonce: "bad" }, { sourcePID: -1 },

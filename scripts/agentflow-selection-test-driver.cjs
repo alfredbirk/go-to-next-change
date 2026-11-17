@@ -37,6 +37,16 @@ exports.run = async () => {
             } else if (request.action === 'state') {
                 const editor = vscode.window.activeTextEditor;
                 request.text = editor?.document.getText(editor.selection);
+                if (editor) {
+                    const { start, end } = editor.selection;
+                    request.editorLocation = { documentKind: 'file', filePath: editor.document.uri.fsPath,
+                        documentVersion: editor.document.version, unsaved: editor.document.isDirty,
+                        startLine: start.line + 1, startColumn: start.character + 1, endLine: end.line + 1,
+                        endColumn: end.character + 1, capturedEndLine: end.line + 1, capturedEndColumn: end.character + 1 };
+                    if (vscode.window.tabGroups.activeTabGroup.activeTab?.label === 'Selection bridge diff') {
+                        request.editorLocation.diffSide = editor.document.uri.fsPath === file.fsPath ? 'modified' : 'original';
+                    }
+                }
                 request.focused = vscode.window.state.focused;
                 request.version = vscode.extensions.getExtension('EthanSK.better-git-vscode').packageJSON.version;
                 request.terminalText = terminal?.selection;

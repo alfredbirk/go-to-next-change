@@ -11,6 +11,43 @@ export interface AgentFlowSelectionRequest {
     captureKind?: "startup";
 }
 
+/** Position values are one-based UTF-16 columns; both end positions are exclusive. */
+export interface AgentFlowEditorLocation {
+    documentKind: "file" | "git" | "untitled" | "virtual";
+    filePath?: string;
+    documentName?: string;
+    gitRef?: string;
+    diffSide?: "original" | "modified";
+    documentVersion: number;
+    unsaved: boolean;
+    startLine: number;
+    startColumn: number;
+    endLine: number;
+    endColumn: number;
+    capturedEndLine: number;
+    capturedEndColumn: number;
+}
+
+export function agentFlowEditorIdentity(uri: { scheme: string; fsPath: string; path: string; query: string }):
+    Pick<AgentFlowEditorLocation, "documentKind" | "filePath" | "documentName" | "gitRef"> {
+    if (uri.scheme === "file") { return { documentKind: "file", filePath: uri.fsPath }; }
+    if (uri.scheme === "untitled") {
+        // Untitled buffers can have a proposed save path. It is not a file yet.
+        return { documentKind: "untitled", documentName: uri.path.split("/").pop() };
+    }
+    if (uri.scheme === "git") {
+        try {
+            const source = JSON.parse(uri.query) as { path?: unknown; ref?: unknown } | null;
+            if (typeof source?.path === "string" && source.path.startsWith("/") &&
+                typeof source.ref === "string" && source.ref.length <= 1024) {
+                return { documentKind: "git", filePath: source.path, gitRef: source.ref };
+            }
+        } catch { /* An unfamiliar Git document still has its own buffer coordinates. */ }
+    }
+    // Provider-specific URIs can contain account data or tokens. Do not archive them.
+    return { documentKind: "virtual" };
+}
+
 export type AgentFlowSelectionKind = "mouse" | "keyboard" | "selectAll";
 export type AgentFlowSelectionDirection = "left" | "right" | "up" | "down";
 export type AgentFlowSelectionEventKind = AgentFlowSelectionKind | "unclassifiedExtension";

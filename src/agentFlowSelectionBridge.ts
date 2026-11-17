@@ -3,7 +3,7 @@ import * as fs from "fs";
 import * as net from "net";
 import * as path from "path";
 import { randomUUID } from "crypto";
-import { AgentFlowSelectionEventKind, AgentFlowSelectionDirection, agentFlowSelectionEventKind, agentFlowSelectionIsFresh,
+import { agentFlowEditorIdentity, AgentFlowEditorLocation, AgentFlowSelectionEventKind, AgentFlowSelectionDirection, agentFlowSelectionEventKind, agentFlowSelectionIsFresh,
     agentFlowTerminalSelection, parseAgentFlowSelectionRequest } from "./agentFlowSelectionProtocol";
 
 // Keep the extension's older VS Code minimum: the stable local tool API is
@@ -56,13 +56,31 @@ export function registerAgentFlowSelectionBridge(context: vscode.ExtensionContex
         return editor && editor.selections.length === 1 ?
             { editor, selection: editor.selection, version: editor.document.version } : undefined;
     };
-    const readEditorSelection = (editor: vscode.TextEditor, selection: vscode.Selection): string => {
-        // Both startup and live pulls use the same UTF-16 transport bound.
+    const readEditorSelection = (editor: vscode.TextEditor, selection: vscode.Selection):
+        { text: string; location: AgentFlowEditorLocation } => {
         const document = editor.document;
         const start = document.offsetAt(selection.start);
         const end = Math.min(document.offsetAt(selection.end), start + 8192);
-        return document.getText(new vscode.Range(selection.start, document.positionAt(end)))
+        const text = document.getText(new vscode.Range(selection.start, document.positionAt(end)))
             .replace(/[\uD800-\uDBFF]$/, "");
+        // Derive the captured end from the text actually sent. A clipped surrogate
+        // or CRLF boundary can leave it earlier than the transport's raw limit.
+        const capturedEnd = document.positionAt(start + text.length);
+        const input = vscode.window.tabGroups.activeTabGroup.activeTab?.input;
+        let diffSide: AgentFlowEditorLocation["diffSide"];
+        if (input instanceof vscode.TabInputTextDiff) {
+            const uri = document.uri.toString();
+            const original = uri === input.original.toString();
+            const modified = uri === input.modified.toString();
+            if (original !== modified) { diffSide = original ? "original" : "modified"; }
+        }
+        return { text, location: {
+            ...agentFlowEditorIdentity(document.uri), ...(diffSide && { diffSide }),
+            documentVersion: document.version, unsaved: document.isDirty,
+            startLine: selection.start.line + 1, startColumn: selection.start.character + 1,
+            endLine: selection.end.line + 1, endColumn: selection.end.character + 1,
+            capturedEndLine: capturedEnd.line + 1, capturedEndColumn: capturedEnd.character + 1,
+        } };
     };
     let previous = snapshot();
     let disposed = false;
@@ -152,9 +170,9 @@ export function registerAgentFlowSelectionBridge(context: vscode.ExtensionContex
                     const initial = snapshot();
                     if (initial && !initial.selection.isEmpty &&
                         vscode.window.visibleTextEditors.includes(initial.editor)) {
-                        const text = readEditorSelection(initial.editor, initial.selection);
+                        const selection = readEditorSelection(initial.editor, initial.selection);
                         result = { version: 1, nonce: request.nonce, sourcePID: mainPID,
-                            surface: "editor", captureKind: "startup", observedAt: Date.now(), text,
+                            surface: "editor", captureKind: "startup", observedAt: Date.now(), ...selection,
                             inputKind: request.inputKind ?? "mouse" };
                     }
                 } else if (request && request.surface !== "terminal" && request.sourcePID === mainPID && current && vscode.window.state.focused &&
@@ -164,9 +182,9 @@ export function registerAgentFlowSelectionBridge(context: vscode.ExtensionContex
                     current.editor.selection.isEqual(current.selection) &&
                     agentFlowSelectionIsFresh(request, current.changedAt, Date.now(), current.inputKind,
                         current.fullDocument, current.direction)) {
-                    const text = readEditorSelection(current.editor, current.selection);
+                    const selection = readEditorSelection(current.editor, current.selection);
                     result = { version: 1, nonce: request.nonce, sourcePID: mainPID,
-                        changedAt: current.changedAt, text, inputKind: request.inputKind ?? "mouse" };
+                        surface: "editor", changedAt: current.changedAt, ...selection, inputKind: request.inputKind ?? "mouse" };
                 }
             } catch { /* Malformed/disappearing editor: no content and no log. */ }
             socket.end(JSON.stringify(result) + "\n");
