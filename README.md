@@ -44,10 +44,10 @@ On **macOS** you can collect several files as you review them, then stage them a
 
 In Source Control, files in the batch show 💥💥 and the file you are reviewing shows 👀. In Review changes mode, the file you are still looking at is left unstaged so you can carry on reviewing it. At the last file, go Next once more after its final change to include it too: its eyes become 💥💥. Previous works the same way at the first file. Everything stays pending until you let go. In Stage files mode, the file you are on is included. If the batch is empty when you let go, nothing is staged. Each new batch starts in Review changes mode.
 
-To back out:
+To finish or cancel:
 
 - Press **Escape** to cancel the batch and return to where you started.
-- Leaving the VS Code window also cancels the batch, without staging anything.
+- Switching away from VS Code stages the reviewed batch, leaving the file you are currently looking at unstaged. This also applies in Stage files mode. Returning or releasing the keys afterward does not stage it again.
 - After staging, one Undo (`Cmd+Z` in the Source Control Changes list) undoes the whole batch.
 
 **Staging one file at a time still works.** `Option+Shift+.` / `Option+Shift+,` stage the current file and jump to the next or previous one, as before. Holding them down stages only once, and releasing Shift after this shortcut does not switch modes.

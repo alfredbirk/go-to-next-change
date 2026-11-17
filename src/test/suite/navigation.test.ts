@@ -3320,7 +3320,9 @@ suite('SCM change navigation E2E', () => {
 		}
 	}
 
-	for (const source of ['corsair', 'razer']) {
+	// App switching must finish a release-to-stage keyboard batch just like a physical mouse batch.
+	// Keep this in the same real-focus matrix so a new input owner cannot silently lose the earlier fix.
+	for (const source of ['corsair', 'razer', 'keyboard']) {
 		for (const direction of ['next', 'previous']) {
 			for (const eyes of [false, true]) {
 				test(`app switch commits the reduced ${source} ${direction} ${eyes ? 'eyes' : 'file'} batch without its current preview`, async () => {
@@ -3338,14 +3340,25 @@ suite('SCM change navigation E2E', () => {
 						const start = direction === 'next' ? 0 : 3;
 						await openPlainAt(names[start], 0);
 						await focusIsolatedTestWindow();
-						await vscode.commands.executeCommand('better-git-vscode.begin-mouse-navigation-hold', { source, direction });
-						await vscode.commands.executeCommand('better-git-vscode.stage-hold-ready', source);
-						await vscode.commands.executeCommand('better-git-vscode.set-mouse-stage-preview-mode', source, eyes);
+						if (source === 'keyboard') {
+							await vscode.commands.executeCommand('better-git-vscode.begin-keyboard-review', direction);
+							if (!eyes) { await vscode.commands.executeCommand('better-git-vscode.toggle-keyboard-review', direction); }
+						} else {
+							await vscode.commands.executeCommand('better-git-vscode.begin-mouse-navigation-hold', { source, direction });
+							await vscode.commands.executeCommand('better-git-vscode.stage-hold-ready', source);
+							await vscode.commands.executeCommand('better-git-vscode.set-mouse-stage-preview-mode', source, eyes);
+						}
+						const move = (step: string) => source === 'keyboard'
+							? vscode.commands.executeCommand('better-git-vscode.step-keyboard-review', step === 'down' ? 'next' : 'previous')
+							: vscode.commands.executeCommand('better-git-vscode.adjust-mouse-stage-selection', source, step);
+						const finish = () => source === 'keyboard'
+							? vscode.commands.executeCommand('better-git-vscode.finish-keyboard-review')
+							: vscode.commands.executeCommand('better-git-vscode.finish-mouse-navigation-hold', { source, direction });
 						const forward = direction === 'next' ? 'down' : 'up';
 						for (let n = 0; n < 3; n++) {
-							await vscode.commands.executeCommand('better-git-vscode.adjust-mouse-stage-selection', source, forward);
+							await move(forward);
 						}
-						await vscode.commands.executeCommand('better-git-vscode.adjust-mouse-stage-selection', source, direction === 'next' ? 'up' : 'down');
+						await move(direction === 'next' ? 'up' : 'down');
 						const endpoint = direction === 'next' ? 2 : 1;
 						assert.strictEqual(activeTabPath(), wsUri(names[endpoint]).path, 'backtracking must reduce the batch before the app switch');
 						const editor = visibleEditorFor(wsUri(names[endpoint]))!;
@@ -3360,9 +3373,9 @@ suite('SCM change navigation E2E', () => {
 						assert.strictEqual(vscode.window.tabGroups.activeTabGroup.activeTab, tab, 'interruption must not navigate');
 						assert.deepStrictEqual(editor.selection, cursor);
 						assert.strictEqual(editor.visibleRanges[0].start.line, top);
-						await vscode.commands.executeCommand('better-git-vscode.finish-mouse-navigation-hold', { source, direction });
+						await finish();
 						await focusIsolatedTestWindow();
-						await vscode.commands.executeCommand('better-git-vscode.finish-mouse-navigation-hold', { source, direction });
+						await finish();
 						assert.strictEqual(git('diff --cached --name-only'), expected, 'late and repeated physical releases must be inert');
 						await extensionApi.whenStageTransactionsSettled();
 						await vscode.commands.executeCommand('better-git-vscode.undo-last-stage-and-advance');
@@ -6071,7 +6084,7 @@ suite('SCM change navigation E2E', () => {
 		}
 	});
 
-	test('keyboard review app switch discards the selection without staging', async () => {
+	test('keyboard review app switch stages reviewed files once without its preview', async () => {
 		const names = ['kb_focus_a.txt', 'kb_focus_b.txt'];
 		for (const name of names) { write(name, name); }
 		await refreshUntil(() => names.every(isUntracked), 'keyboard focus files');
@@ -6082,17 +6095,42 @@ suite('SCM change navigation E2E', () => {
 			await keyboardReview.step('next');
 			await expectActiveTab(names[1]);
 			await switchAwayFromIsolatedTestWindow();
+			await poll(() => git('diff --cached --name-only') === names[0], 'keyboard app switch stages in the background');
 			await extensionApi.whenStageTransactionsSettled();
-			assert.strictEqual(git('diff --cached --name-only'), '', 'leaving the app is not a finish');
+			assert.strictEqual(vscode.window.state.focused, false, 'staging must not reactivate Code');
 			assert.strictEqual(extensionApi.isKeyboardReviewActive(), false);
 			await focusIsolatedTestWindow();
 			await keyboardReview.finish();
-			assert.strictEqual(git('diff --cached --name-only'), '', 'a later finish is inert');
+			assert.strictEqual(git('diff --cached --name-only'), names[0], 'a later finish is inert');
+			await vscode.commands.executeCommand('better-git-vscode.undo-last-stage-and-advance');
+			assert.strictEqual(git('diff --cached --name-only'), '', 'one Undo restores the interrupted batch');
 		} finally {
 			await focusIsolatedTestWindow();
 			await keyboardReview.cancel();
 		}
 	});
+
+	for (const cancelled of [false, true]) {
+		test(`keyboard app switch keeps an ${cancelled ? 'explicitly cancelled' : 'empty eyes'} batch inert`, async () => {
+			const names = ['kb_inert_a.txt', 'kb_inert_b.txt'];
+			for (const name of names) { write(name, name); }
+			await refreshUntil(() => names.every(isUntracked), 'keyboard inert files');
+			await openPlainAt(names[0], 0);
+			await focusIsolatedTestWindow();
+			try {
+				await keyboardReview.begin('next');
+				if (cancelled) { await keyboardReview.step('next'); await keyboardReview.cancel(); }
+				await switchAwayFromIsolatedTestWindow();
+				await keyboardReview.finish();
+				await extensionApi.whenStageTransactionsSettled();
+				assert.strictEqual(git('diff --cached --name-only'), '', 'app switching cannot turn empty or cancelled review into a stage');
+				assert.strictEqual(extensionApi.isKeyboardReviewActive(), false);
+			} finally {
+				await focusIsolatedTestWindow();
+				await keyboardReview.cancel();
+			}
+		});
+	}
 
 	test('keyboard review without an unstaged file keeps every step as ordinary navigation', async () => {
 		const names = ['kb_none_a.txt', 'kb_none_b.txt'];

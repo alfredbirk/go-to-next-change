@@ -1871,17 +1871,16 @@ export function activate(context: vscode.ExtensionContext): BetterGitExtensionAp
     };
     clearStageHoldFeedbackRequest = clearStageHoldFeedback;
     const stageHeldSelectionOnFocusLoss = (): Promise<void> => {
-        // Ethan's interruption rule applies only to a PHYSICAL mouse batch: app switching stages the
-        // earlier marked files, excluding the current preview even in file mode. Clicking the editor or
-        // gutter inside Code is not app switching and must neither cancel nor commit a held selection.
+        // Ethan's app-switch rule applies to every release-to-stage hold, including keyboard Option review:
+        // stage earlier marked files, excluding the current preview even in file mode. The Oct 29 keyboard
+        // integration accidentally opted out of the Oct 7 mouse fix. Editor/gutter clicks inside Code still
+        // neither cancel nor commit a hold. Keep the wand's explicit confirmation separate. — Codex (model version unavailable)
         // Snapshot before invalidation retires the physical gesture. Queued/in-flight
         // wheel work must not add files after the user has left this window.
         const request = latestMouseHoldRequest;
-        // Unlike releasing a physical mouse hold, leaving VS Code is not the
-        // wand's explicit Middle double-click confirmation, nor a keyboard
-        // review's explicit finish. Cancel both safely, staging nothing.
+        // Leaving Code is not the wand's explicit Middle double-click confirmation; it still cancels.
         const owner = [...stageHoldSelections.entries()].find(([source, selection]) =>
-            source !== "wand" && source !== "keyboard"
+            source !== "wand"
             && request?.active && request.stageReadyRequested && selection.request === request
             && mouseHoldRequests.get(source) === request
             && mouseNavigationOrigins.get(source)?.holdRequest === request);
@@ -2740,8 +2739,11 @@ export function activate(context: vscode.ExtensionContext): BetterGitExtensionAp
         stageHoldPreviewNavigationCommand, stagePreviewModeCommand,
         ...keyboardReviewCommands,
         vscode.window.onDidChangeWindowState(state => {
-            keyboardKeyMonitor.focus(state.focused);
+            // Capture the interruption batch BEFORE stopping its modifier reader. That reader resets and
+            // cancels any still-live keyboard hold; doing it first silently erased the set before capture.
+            // Capture retires ownership synchronously, so late key-up/duplicate blur cannot stage it twice.
             if (!state.focused) { void stageHeldSelectionOnFocusLoss(); }
+            keyboardKeyMonitor.focus(state.focused);
         }),
         openIndexInSystemBrowserCommand,
         copyWorktreeNameCommand,
