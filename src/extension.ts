@@ -1873,7 +1873,7 @@ export function activate(context: vscode.ExtensionContext): BetterGitExtensionAp
     const stageHeldSelectionOnFocusLoss = (): Promise<void> => {
         // Ethan's app-switch rule applies to every release-to-stage hold, including keyboard Option review:
         // stage earlier marked files, excluding the current preview even in file mode. The Oct 29 keyboard
-        // integration accidentally opted out of the Oct 7 mouse fix. Editor/gutter clicks inside Code still
+        // integration explicitly excluded keyboard from the Oct 7 mouse fix. Editor/gutter clicks inside Code still
         // neither cancel nor commit a hold. Keep the wand's explicit confirmation separate. — Codex (model version unavailable)
         // Snapshot before invalidation retires the physical gesture. Queued/in-flight
         // wheel work must not add files after the user has left this window.
